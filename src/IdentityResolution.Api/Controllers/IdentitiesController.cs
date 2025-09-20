@@ -1,5 +1,6 @@
 using IdentityResolution.Core.Models;
 using IdentityResolution.Core.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IdentityResolution.Api.Controllers;
@@ -54,6 +55,7 @@ public class IdentitiesController : ControllerBase
     /// </summary>
     /// <param name="identity">The identity to create</param>
     [HttpPost]
+    [Authorize] // Add authorization requirement for create operations
     public async Task<ActionResult<Identity>> CreateIdentity([FromBody] Identity identity)
     {
         try
@@ -89,6 +91,7 @@ public class IdentitiesController : ControllerBase
     /// <param name="id">The identity ID</param>
     /// <param name="identity">The updated identity data</param>
     [HttpPut("{id}")]
+    [Authorize] // Add authorization requirement for update operations
     public async Task<ActionResult<Identity>> UpdateIdentity(Guid id, [FromBody] Identity identity)
     {
         if (id != identity.Id)
@@ -127,6 +130,7 @@ public class IdentitiesController : ControllerBase
     /// </summary>
     /// <param name="id">The identity ID</param>
     [HttpDelete("{id}")]
+    [Authorize] // Add authorization requirement for delete operations
     public async Task<IActionResult> DeleteIdentity(Guid id)
     {
         var deleted = await _storageService.DeleteIdentityAsync(id);
