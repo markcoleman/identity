@@ -1,0 +1,156 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run security scan daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  codeql-analysis:
+    name: CodeQL Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+      
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'csharp' ]
+        
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        queries: security-extended,security-and-quality
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build for CodeQL analysis
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"
+
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: List packages for audit
+      run: dotnet list package --vulnerable --include-transitive --format json > vulnerable-packages.json
+      continue-on-error: true
+      
+    - name: Upload vulnerability report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: vulnerability-report
+        path: vulnerable-packages.json
+        
+    - name: Check for vulnerable packages
+      run: |
+        echo "🔍 Scanning for vulnerable packages..."
+        dotnet list package --vulnerable --include-transitive | tee vulnerability-scan.txt
+        
+        if grep -q "has the following vulnerable packages" vulnerability-scan.txt; then
+          echo "⚠️ Vulnerable packages detected!"
+          echo "This is informational - consider updating these packages in a future PR"
+          echo "::warning::Vulnerable dependencies found. Consider updating packages."
+        else
+          echo "✅ No vulnerable packages found"
+        fi
+
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Run TruffleHog OSS
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: ${{ github.event.repository.default_branch }}
+        head: HEAD
+        extra_args: --debug --only-verified
+
+  security-audit:
+    name: .NET Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Install security audit tool
+      run: dotnet tool install --global Microsoft.CST.DevSkim.CLI
+      
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Run security audit
+      run: |
+        # Run DevSkim for security pattern detection
+        devskim analyze --source-code . --output-format sarif --output-file devskim-results.sarif || true
+        
+    - name: Upload DevSkim results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: devskim-results
+        path: devskim-results.sarif
+        
+    - name: Upload results to GitHub Security tab
+      if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: devskim-results.sarif
+        category: devskim
+      continue-on-error: true
