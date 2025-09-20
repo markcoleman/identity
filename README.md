@@ -1,5 +1,10 @@
 # Identity Resolution
 
+![CI/CD](https://github.com/markcoleman/identity/workflows/CI/CD%20Pipeline/badge.svg)
+![Security](https://github.com/markcoleman/identity/workflows/Security%20Scanning/badge.svg)
+[![.NET](https://img.shields.io/badge/.NET-8.0-blue)](https://dotnet.microsoft.com/download/dotnet/8.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A hobby application for simple identity resolution using C# .NET 8.
 
 ## Overview
@@ -131,6 +136,46 @@ Run with coverage:
 ```bash
 dotnet test --collect:"XPlat Code Coverage"
 ```
+
+## DevOps & Automation
+
+This project includes comprehensive DevOps workflows for automated security and build/test automation:
+
+### Continuous Integration (CI/CD)
+
+- **Automated Build & Test**: Every push and pull request triggers automated building and testing
+- **Multi-job Pipeline**: Parallel execution of build, test, and code quality checks
+- **Artifact Management**: Test results and code coverage reports are automatically collected
+- **Docker Build**: Automated container builds for main branch deployments
+
+### Security Automation
+
+- **CodeQL Analysis**: Advanced semantic code analysis for security vulnerabilities
+- **Dependency Scanning**: Automated checks for vulnerable NuGet packages
+- **Secret Scanning**: Detection of accidentally committed secrets and credentials
+- **Security Auditing**: Regular security pattern analysis with DevSkim
+
+### Dependency Management
+
+- **Automated Updates**: Dependabot automatically creates PRs for dependency updates
+- **Grouped Updates**: Related packages are updated together for easier review
+- **Security Updates**: Priority handling of security-related dependency updates
+- **Multi-Ecosystem**: Covers .NET packages, GitHub Actions, and Docker images
+
+### Workflow Status
+
+| Workflow | Status | Purpose |
+|----------|--------|---------|
+| CI/CD Pipeline | ![CI/CD](https://github.com/markcoleman/identity/workflows/CI/CD%20Pipeline/badge.svg) | Build, test, and deployment automation |
+| Security Scanning | ![Security](https://github.com/markcoleman/identity/workflows/Security%20Scanning/badge.svg) | Vulnerability detection and security auditing |
+
+### Getting Workflow Notifications
+
+To receive notifications about workflow failures or security alerts:
+
+1. Watch this repository for **Releases only** or **All Activity**
+2. Configure notification settings in your GitHub profile
+3. Enable email notifications for security alerts
 
 ## Contributing
 
