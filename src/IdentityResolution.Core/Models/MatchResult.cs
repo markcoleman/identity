@@ -6,47 +6,47 @@ namespace IdentityResolution.Core.Models;
 public class IdentityMatch
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    
+
     /// <summary>
     /// The source identity being matched
     /// </summary>
     public Identity SourceIdentity { get; set; } = null!;
-    
+
     /// <summary>
     /// The candidate identity that might be a match
     /// </summary>
     public Identity CandidateIdentity { get; set; } = null!;
-    
+
     /// <summary>
     /// Overall confidence score for this match (0.0 to 1.0)
     /// </summary>
     public double OverallScore { get; set; }
-    
+
     /// <summary>
     /// Individual field match scores
     /// </summary>
     public Dictionary<string, double> FieldScores { get; set; } = new();
-    
+
     /// <summary>
     /// Match reasons and explanations
     /// </summary>
     public List<string> MatchReasons { get; set; } = new();
-    
+
     /// <summary>
     /// When this match was calculated
     /// </summary>
     public DateTime MatchedAt { get; set; } = DateTime.UtcNow;
-    
+
     /// <summary>
     /// The matching algorithm or rule set used
     /// </summary>
     public string? Algorithm { get; set; }
-    
+
     /// <summary>
     /// Whether this match exceeds the auto-merge threshold
     /// </summary>
     public bool IsAutoMergeCandidate { get; set; }
-    
+
     /// <summary>
     /// Status of this match
     /// </summary>
@@ -86,22 +86,22 @@ public class MatchingConfiguration
     /// Minimum score required to consider a potential match
     /// </summary>
     public double MinimumMatchThreshold { get; set; } = 0.6;
-    
+
     /// <summary>
     /// Score threshold for automatic merging
     /// </summary>
     public double AutoMergeThreshold { get; set; } = 0.9;
-    
+
     /// <summary>
     /// Maximum number of matches to return
     /// </summary>
     public int MaxResults { get; set; } = 10;
-    
+
     /// <summary>
     /// Whether to enable fuzzy string matching
     /// </summary>
     public bool EnableFuzzyMatching { get; set; } = true;
-    
+
     /// <summary>
     /// Field weights for scoring
     /// </summary>
@@ -113,7 +113,7 @@ public class MatchingConfiguration
         ["Phone"] = 0.15,
         ["DateOfBirth"] = 0.1
     };
-    
+
     /// <summary>
     /// Fields that must match exactly (e.g., SSN)
     /// </summary>

@@ -28,9 +28,9 @@ public class InMemoryIdentityStorageService : IIdentityStorageService
         identity.UpdatedAt = DateTime.UtcNow;
 
         _identities[identity.Id] = identity;
-        
+
         _logger.LogInformation("Stored identity {IdentityId} from source {Source}", identity.Id, identity.Source);
-        
+
         return Task.FromResult(identity);
     }
 
@@ -54,21 +54,21 @@ public class InMemoryIdentityStorageService : IIdentityStorageService
 
         identity.UpdatedAt = DateTime.UtcNow;
         _identities[identity.Id] = identity;
-        
+
         _logger.LogInformation("Updated identity {IdentityId}", identity.Id);
-        
+
         return Task.FromResult(identity);
     }
 
     public Task<bool> DeleteIdentityAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var removed = _identities.Remove(id);
-        
+
         if (removed)
         {
             _logger.LogInformation("Deleted identity {IdentityId}", id);
         }
-        
+
         return Task.FromResult(removed);
     }
 }

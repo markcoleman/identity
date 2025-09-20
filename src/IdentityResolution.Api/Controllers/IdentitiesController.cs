@@ -40,7 +40,7 @@ public class IdentitiesController : ControllerBase
     public async Task<ActionResult<Identity>> GetIdentity(Guid id)
     {
         var identity = await _storageService.GetIdentityAsync(id);
-        
+
         if (identity == null)
         {
             return NotFound();
@@ -60,16 +60,16 @@ public class IdentitiesController : ControllerBase
         {
             // Normalize the identity data
             var normalizedIdentity = _normalizationService.NormalizeIdentity(identity);
-            
+
             // Store the identity
             var storedIdentity = await _storageService.StoreIdentityAsync(normalizedIdentity);
-            
-            _logger.LogInformation("Created identity {IdentityId} from source {Source}", 
+
+            _logger.LogInformation("Created identity {IdentityId} from source {Source}",
                 storedIdentity.Id, storedIdentity.Source);
 
             return CreatedAtAction(
-                nameof(GetIdentity), 
-                new { id = storedIdentity.Id }, 
+                nameof(GetIdentity),
+                new { id = storedIdentity.Id },
                 storedIdentity);
         }
         catch (Exception ex)
@@ -104,7 +104,7 @@ public class IdentitiesController : ControllerBase
             // Normalize and update
             var normalizedIdentity = _normalizationService.NormalizeIdentity(identity);
             var updatedIdentity = await _storageService.UpdateIdentityAsync(normalizedIdentity);
-            
+
             return Ok(updatedIdentity);
         }
         catch (ArgumentException)
@@ -126,7 +126,7 @@ public class IdentitiesController : ControllerBase
     public async Task<IActionResult> DeleteIdentity(Guid id)
     {
         var deleted = await _storageService.DeleteIdentityAsync(id);
-        
+
         if (!deleted)
         {
             return NotFound();
