@@ -175,20 +175,37 @@ public class IdentitiesController : ControllerBase
 
     /// <summary>
     /// Resolve an identity using deterministic and probabilistic matching
+    /// Returns EPID, decision, score, and explanations per API contract requirements
     /// </summary>
     /// <param name="identity">The identity to resolve</param>
     [HttpPost("resolve")]
     [Authorize] // Add authorization requirement for resolve operations
-    public async Task<ActionResult<ResolutionResult>> ResolveIdentity([FromBody] Identity identity)
+    public async Task<ActionResult<IdentityResolutionResponse>> ResolveIdentity([FromBody] Identity identity)
     {
         try
         {
             var resolutionResult = await _resolutionService.ResolveIdentityAsync(identity);
 
-            _logger.LogInformation("Identity resolution completed with decision {Decision} for resolution {ResolutionId}",
-                resolutionResult.Decision, resolutionResult.ResolutionId);
+            // Create enhanced API response with EPID, decision, score, and explanations
+            var response = new IdentityResolutionResponse
+            {
+                EPID = resolutionResult.EPID,
+                Decision = resolutionResult.Decision,
+                Score = resolutionResult.Matches.FirstOrDefault()?.OverallScore ?? 0.0,
+                Explanation = resolutionResult.Explanation ?? "No explanation available",
+                ResolvedIdentity = resolutionResult.ResolvedIdentity,
+                ProcessingTime = resolutionResult.ProcessingTime,
+                ResolutionId = resolutionResult.ResolutionId,
+                Matches = resolutionResult.Matches.Take(5).ToList(), // Include top 5 matches for context
+                WasAutoMerged = resolutionResult.WasAutoMerged,
+                Warnings = resolutionResult.Warnings,
+                Strategy = resolutionResult.Strategy
+            };
 
-            return Ok(resolutionResult);
+            _logger.LogInformation("Identity resolution completed: EPID {EPID}, Decision {Decision}, Score {Score}",
+                response.EPID, response.Decision, response.Score);
+
+            return Ok(response);
         }
         catch (Exception ex)
         {
@@ -196,4 +213,65 @@ public class IdentitiesController : ControllerBase
             return StatusCode(500, "Error occurred during identity resolution");
         }
     }
+}
+
+/// <summary>
+/// Enhanced API response for identity resolution as per requirements
+/// </summary>
+public class IdentityResolutionResponse
+{
+    /// <summary>
+    /// Enterprise Person ID (EPID) - stable identifier for the resolved person
+    /// </summary>
+    public string EPID { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Resolution decision made by the system
+    /// </summary>
+    public ResolutionDecision Decision { get; set; }
+
+    /// <summary>
+    /// Confidence score for the resolution
+    /// </summary>
+    public double Score { get; set; }
+
+    /// <summary>
+    /// Detailed explanation of how the resolution decision was made
+    /// </summary>
+    public string Explanation { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The resolved identity
+    /// </summary>
+    public Identity? ResolvedIdentity { get; set; }
+
+    /// <summary>
+    /// Processing time for the resolution
+    /// </summary>
+    public TimeSpan ProcessingTime { get; set; }
+
+    /// <summary>
+    /// Unique identifier for this resolution attempt
+    /// </summary>
+    public Guid ResolutionId { get; set; }
+
+    /// <summary>
+    /// Top potential matches found (for transparency)
+    /// </summary>
+    public List<IdentityMatch> Matches { get; set; } = new();
+
+    /// <summary>
+    /// Whether any identities were automatically merged
+    /// </summary>
+    public bool WasAutoMerged { get; set; }
+
+    /// <summary>
+    /// Any warnings or notes about the resolution
+    /// </summary>
+    public List<string> Warnings { get; set; } = new();
+
+    /// <summary>
+    /// The resolution strategy used
+    /// </summary>
+    public string? Strategy { get; set; }
 }

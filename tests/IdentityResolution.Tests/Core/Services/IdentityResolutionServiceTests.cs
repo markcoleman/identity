@@ -25,7 +25,10 @@ public class IdentityResolutionServiceTests
             _mockMatchingService.Object,
             _mockStorageService.Object,
             _mockNormalizationService.Object,
-            mockLogger.Object);
+            mockLogger.Object,
+            null, // No audit service for tests
+            null  // No review queue service for tests
+        );
     }
 
     [Fact]
@@ -46,6 +49,8 @@ public class IdentityResolutionServiceTests
             .ReturnsAsync(matchResult);
         _mockStorageService.Setup(x => x.StoreIdentityAsync(normalizedIdentity, It.IsAny<CancellationToken>()))
             .ReturnsAsync(normalizedIdentity);
+        _mockStorageService.Setup(x => x.UpdateIdentityAsync(It.IsAny<Identity>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Identity identity, CancellationToken _) => identity);
 
         // Act
         var result = await _service.ResolveIdentityAsync(identity);
@@ -130,6 +135,8 @@ public class IdentityResolutionServiceTests
             .ReturnsAsync(matchResult);
         _mockStorageService.Setup(x => x.StoreIdentityAsync(normalizedIdentity, It.IsAny<CancellationToken>()))
             .ReturnsAsync(normalizedIdentity);
+        _mockStorageService.Setup(x => x.UpdateIdentityAsync(It.IsAny<Identity>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Identity identity, CancellationToken _) => identity);
 
         var config = new MatchingConfiguration
         {
@@ -174,6 +181,8 @@ public class IdentityResolutionServiceTests
             .ReturnsAsync(matchResult);
         _mockStorageService.Setup(x => x.StoreIdentityAsync(normalizedIdentity, It.IsAny<CancellationToken>()))
             .ReturnsAsync(normalizedIdentity);
+        _mockStorageService.Setup(x => x.UpdateIdentityAsync(It.IsAny<Identity>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Identity identity, CancellationToken _) => identity);
 
         // Act
         var result = await _service.ResolveIdentityAsync(identity);

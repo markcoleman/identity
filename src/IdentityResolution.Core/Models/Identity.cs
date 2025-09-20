@@ -94,6 +94,37 @@ public class Address
 }
 
 /// <summary>
+/// Tokenized address components for matching and normalization
+/// </summary>
+public class AddressTokens
+{
+    /// <summary>
+    /// Normalized street address components
+    /// </summary>
+    public List<string> StreetTokens { get; set; } = new();
+
+    /// <summary>
+    /// Normalized city name
+    /// </summary>
+    public string City { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Normalized state/province
+    /// </summary>
+    public string State { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Normalized postal/ZIP code
+    /// </summary>
+    public string PostalCode { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Normalized country code
+    /// </summary>
+    public string Country { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Various types of identifiers
 /// </summary>
 public class Identifier
