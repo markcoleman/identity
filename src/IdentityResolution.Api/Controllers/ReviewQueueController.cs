@@ -86,7 +86,7 @@ public class ReviewQueueController : ControllerBase
                 request.Notes);
 
             _logger.LogInformation("Updated review item {ReviewItemId} with decision {Decision} by {ReviewedBy}",
-                id, request.Decision, request.ReviewedBy);
+                id, request.Decision, SanitizeLogInput(request.ReviewedBy));
 
             return Ok(updatedItem);
         }
@@ -95,10 +95,15 @@ public class ReviewQueueController : ControllerBase
             _logger.LogWarning(ex, "Review item {ReviewItemId} not found", id);
             return NotFound(ex.Message);
         }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Invalid operation for review item {ReviewItemId}", id);
+            return BadRequest(ex.Message);
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating review item {ReviewItemId}", id);
-            return StatusCode(500, "Error occurred while updating review item");
+            _logger.LogError(ex, "Unexpected error updating review item {ReviewItemId}", id);
+            return StatusCode(500, "An unexpected error occurred while updating review item");
         }
     }
 
@@ -131,9 +136,26 @@ public class ReviewQueueController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error resolving review item {ReviewItemId}", id);
-            return StatusCode(500, "Error occurred while resolving review item");
+            _logger.LogError(ex, "Unexpected error resolving review item {ReviewItemId}", id);
+            return StatusCode(500, "An unexpected error occurred while resolving review item");
         }
+    }
+
+    /// <summary>
+    /// Sanitize user input for logging to prevent log injection attacks
+    /// </summary>
+    /// <param name="input">The input to sanitize</param>
+    /// <returns>Sanitized input safe for logging</returns>
+    private static string SanitizeLogInput(string? input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return "[empty]";
+
+        // Remove or replace characters that could be used for log injection
+        return input.Replace('\r', ' ')
+                   .Replace('\n', ' ')
+                   .Replace('\t', ' ')
+                   .Trim();
     }
 }
 

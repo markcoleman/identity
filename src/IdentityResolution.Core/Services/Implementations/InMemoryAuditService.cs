@@ -47,10 +47,10 @@ public class InMemoryAuditService : IAuditService
     {
         var query = _auditRecords.Where(r => r.OperationType == operationType);
 
-        if (from.HasValue)
+        if (from is not null)
             query = query.Where(r => r.Timestamp >= from.Value);
 
-        if (to.HasValue)
+        if (to is not null)
             query = query.Where(r => r.Timestamp <= to.Value);
 
         var records = query.OrderByDescending(r => r.Timestamp);

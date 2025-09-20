@@ -68,7 +68,7 @@ public class InMemoryReviewQueueService : IReviewQueueService
         item.Status = ReviewStatus.Reviewed;
 
         _logger.LogInformation("Updated review queue item {ItemId} with decision {Decision} by {ReviewedBy}",
-            id, decision, reviewedBy);
+            id, decision, SanitizeLogInput(reviewedBy));
 
         return Task.FromResult(item);
     }
@@ -173,5 +173,22 @@ public class InMemoryReviewQueueService : IReviewQueueService
         };
 
         return merged;
+    }
+
+    /// <summary>
+    /// Sanitize user input for logging to prevent log injection attacks
+    /// </summary>
+    /// <param name="input">The input to sanitize</param>
+    /// <returns>Sanitized input safe for logging</returns>
+    private static string SanitizeLogInput(string? input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return "[empty]";
+
+        // Remove or replace characters that could be used for log injection
+        return input.Replace('\r', ' ')
+                   .Replace('\n', ' ')
+                   .Replace('\t', ' ')
+                   .Trim();
     }
 }
