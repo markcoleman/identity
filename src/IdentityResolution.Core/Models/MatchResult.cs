@@ -74,12 +74,12 @@ public enum ResolutionDecision
     /// Automatically merge/resolve identities
     /// </summary>
     Auto,
-    
+
     /// <summary>
     /// Requires manual review before resolution
     /// </summary>
     Review,
-    
+
     /// <summary>
     /// Create new identity record
     /// </summary>

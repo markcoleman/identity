@@ -72,13 +72,13 @@ public class IdentityResolutionService : IIdentityResolutionService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during identity resolution for {IdentityId}", identity.Id);
-            
+
             stopwatch.Stop();
             result.ProcessingTime = stopwatch.Elapsed;
             result.Decision = ResolutionDecision.Review;
             result.Warnings.Add($"Resolution failed due to error: {ex.Message}");
             result.ResolvedIdentity = identity;
-            
+
             return result;
         }
     }
@@ -88,7 +88,7 @@ public class IdentityResolutionService : IIdentityResolutionService
     /// </summary>
     public Identity MergeIdentities(Identity primaryIdentity, Identity secondaryIdentity)
     {
-        _logger.LogInformation("Merging identity {SecondaryId} into {PrimaryId}", 
+        _logger.LogInformation("Merging identity {SecondaryId} into {PrimaryId}",
             secondaryIdentity.Id, primaryIdentity.Id);
 
         var merged = new Identity
@@ -173,10 +173,10 @@ public class IdentityResolutionService : IIdentityResolutionService
     /// Execute the resolution decision
     /// </summary>
     private async Task ExecuteResolutionDecision(
-        ResolutionDecision decision, 
-        Identity normalizedIdentity, 
-        MatchResult matchResult, 
-        ResolutionResult result, 
+        ResolutionDecision decision,
+        Identity normalizedIdentity,
+        MatchResult matchResult,
+        ResolutionResult result,
         CancellationToken cancellationToken)
     {
         switch (decision)
@@ -218,7 +218,7 @@ public class IdentityResolutionService : IIdentityResolutionService
             review = configuration.ReviewThreshold,
             minimum = configuration.MinimumMatchThreshold
         };
-        
+
         if (matchResult.Matches.Any())
         {
             var bestMatch = matchResult.Matches.First();
@@ -255,7 +255,7 @@ public class IdentityResolutionService : IIdentityResolutionService
     private List<Identifier> MergeIdentifiers(List<Identifier> primary, List<Identifier> secondary)
     {
         var merged = new List<Identifier>(primary);
-        
+
         foreach (var secondaryId in secondary)
         {
             // Only add if type doesn't already exist
@@ -271,7 +271,7 @@ public class IdentityResolutionService : IIdentityResolutionService
     private Dictionary<string, string> MergeAttributes(Dictionary<string, string> primary, Dictionary<string, string> secondary)
     {
         var merged = new Dictionary<string, string>(primary);
-        
+
         foreach (var kvp in secondary)
         {
             if (!merged.ContainsKey(kvp.Key))

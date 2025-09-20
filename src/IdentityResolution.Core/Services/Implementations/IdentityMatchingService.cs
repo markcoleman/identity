@@ -42,7 +42,7 @@ public class IdentityMatchingService : IIdentityMatchingService
         foreach (var candidate in candidatesList)
         {
             var match = CompareIdentities(identity, candidate, configuration);
-            
+
             // Only include matches above the minimum threshold
             if (match.OverallScore >= configuration.MinimumMatchThreshold)
             {
@@ -92,7 +92,7 @@ public class IdentityMatchingService : IIdentityMatchingService
 
         // First, try deterministic matching
         var deterministicScore = CalculateDeterministicScore(identity1, identity2, match);
-        
+
         if (deterministicScore >= 1.0)
         {
             // Perfect deterministic match
@@ -146,17 +146,17 @@ public class IdentityMatchingService : IIdentityMatchingService
         // Check SSN + DOB combination (highest priority)
         var ssn1 = GetSSNIdentifier(identity1);
         var ssn2 = GetSSNIdentifier(identity2);
-        
+
         if (!string.IsNullOrEmpty(ssn1) && !string.IsNullOrEmpty(ssn2))
         {
             totalChecks++;
             var token1 = _tokenizationService.TokenizeSSN(ssn1);
             var token2 = _tokenizationService.TokenizeSSN(ssn2);
-            
+
             if (string.Equals(token1, token2, StringComparison.Ordinal))
             {
                 // SSN matches, now check DOB
-                if (identity1.PersonalInfo.DateOfBirth.HasValue && 
+                if (identity1.PersonalInfo.DateOfBirth.HasValue &&
                     identity2.PersonalInfo.DateOfBirth.HasValue &&
                     identity1.PersonalInfo.DateOfBirth.Value.Date == identity2.PersonalInfo.DateOfBirth.Value.Date)
                 {
@@ -181,7 +181,7 @@ public class IdentityMatchingService : IIdentityMatchingService
         {
             var value1 = GetIdentifierValue(identity1, field);
             var value2 = GetIdentifierValue(identity2, field);
-            
+
             if (!string.IsNullOrEmpty(value1) && !string.IsNullOrEmpty(value2))
             {
                 totalChecks++;
@@ -209,15 +209,15 @@ public class IdentityMatchingService : IIdentityMatchingService
         // Check if SSN matches but DOB differs (already handled above but kept for clarity)
         var ssn1 = GetSSNIdentifier(identity1);
         var ssn2 = GetSSNIdentifier(identity2);
-        
+
         if (!string.IsNullOrEmpty(ssn1) && !string.IsNullOrEmpty(ssn2))
         {
             var token1 = _tokenizationService.TokenizeSSN(ssn1);
             var token2 = _tokenizationService.TokenizeSSN(ssn2);
-            
+
             if (string.Equals(token1, token2, StringComparison.Ordinal))
             {
-                if (identity1.PersonalInfo.DateOfBirth.HasValue && 
+                if (identity1.PersonalInfo.DateOfBirth.HasValue &&
                     identity2.PersonalInfo.DateOfBirth.HasValue &&
                     identity1.PersonalInfo.DateOfBirth.Value.Date != identity2.PersonalInfo.DateOfBirth.Value.Date)
                 {
@@ -240,7 +240,7 @@ public class IdentityMatchingService : IIdentityMatchingService
         // Compare names
         var firstNameScore = CompareNames(identity1.PersonalInfo.FirstName, identity2.PersonalInfo.FirstName, configuration.EnableFuzzyMatching);
         var lastNameScore = CompareNames(identity1.PersonalInfo.LastName, identity2.PersonalInfo.LastName, configuration.EnableFuzzyMatching);
-        
+
         AddFieldScore("FirstName", firstNameScore, configuration.FieldWeights, ref weightedScore, ref totalWeight, match);
         AddFieldScore("LastName", lastNameScore, configuration.FieldWeights, ref weightedScore, ref totalWeight, match);
 
@@ -260,7 +260,7 @@ public class IdentityMatchingService : IIdentityMatchingService
 
         // Add explanation
         match.MatchReasons.Add($"Probabilistic matching score: {finalScore:F3}");
-        
+
         return finalScore;
     }
 
@@ -271,7 +271,7 @@ public class IdentityMatchingService : IIdentityMatchingService
             weightedScore += score * weight;
             totalWeight += weight;
             match.FieldScores[field] = score;
-            
+
             if (score > 0.7)
             {
                 match.MatchReasons.Add($"{field} similarity: {score:F3}");

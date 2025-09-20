@@ -64,7 +64,7 @@ public class IdentityResolutionServiceTests
         var identity = CreateTestIdentity("John", "Doe");
         var normalizedIdentity = CreateTestIdentity("John", "Doe");
         var candidateIdentity = CreateTestIdentity("John", "Doe");
-        
+
         var highConfidenceMatch = new IdentityMatch
         {
             SourceIdentity = normalizedIdentity,

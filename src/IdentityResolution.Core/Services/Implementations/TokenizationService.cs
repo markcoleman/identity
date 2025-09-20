@@ -32,7 +32,7 @@ public class TokenizationService : ITokenizationService
 
         // Clean SSN - remove all non-digits
         var cleanedSSN = System.Text.RegularExpressions.Regex.Replace(ssn, @"[^\d]", "");
-        
+
         if (cleanedSSN.Length != 9)
         {
             _logger.LogWarning("Invalid SSN format provided for tokenization");
@@ -41,14 +41,14 @@ public class TokenizationService : ITokenizationService
 
         // Combine with salt for security
         var input = cleanedSSN + _salt;
-        
+
         // Generate deterministic hash
         using var sha256 = SHA256.Create();
         var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
-        
+
         // Convert to base64 for storage/comparison
         var token = Convert.ToBase64String(hashBytes);
-        
+
         _logger.LogDebug("Generated SSN token");
         return token;
     }

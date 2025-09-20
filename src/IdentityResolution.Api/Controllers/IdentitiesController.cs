@@ -161,7 +161,7 @@ public class IdentitiesController : ControllerBase
             var normalizedIdentity = _normalizationService.NormalizeIdentity(identity);
             var matchResult = await _matchingService.FindMatchesAsync(normalizedIdentity);
 
-            _logger.LogInformation("Found {MatchCount} potential matches for identity matching request", 
+            _logger.LogInformation("Found {MatchCount} potential matches for identity matching request",
                 matchResult.Matches.Count);
 
             return Ok(matchResult);
@@ -185,7 +185,7 @@ public class IdentitiesController : ControllerBase
         {
             var resolutionResult = await _resolutionService.ResolveIdentityAsync(identity);
 
-            _logger.LogInformation("Identity resolution completed with decision {Decision} for resolution {ResolutionId}", 
+            _logger.LogInformation("Identity resolution completed with decision {Decision} for resolution {ResolutionId}",
                 resolutionResult.Decision, resolutionResult.ResolutionId);
 
             return Ok(resolutionResult);

@@ -47,7 +47,7 @@ public class IdentityMatchingServiceTests
     [Fact]
     public void CompareIdentities_WithSSNMatchButDOBDiffers_ShouldFlagForReview()
     {
-        // Arrange
+        // Arrange - same SSN, different DOB (should be a conflict)
         var identity1 = CreateIdentityWithSSNAndDOB("123-45-6789", new DateTime(1990, 1, 1));
         var identity2 = CreateIdentityWithSSNAndDOB("123-45-6789", new DateTime(1990, 1, 2)); // Different DOB
 
@@ -80,7 +80,7 @@ public class IdentityMatchingServiceTests
         var result = _service.CompareIdentities(identity1, identity2, config);
 
         // Assert - Should get perfect score since all fields match
-        Assert.True(result.OverallScore >= config.AutoMergeThreshold, 
+        Assert.True(result.OverallScore >= config.AutoMergeThreshold,
             $"Expected score >= {config.AutoMergeThreshold}, but got {result.OverallScore}");
         Assert.True(result.IsAutoMergeCandidate);
         Assert.Equal(MatchStatus.Pending, result.Status);
@@ -133,7 +133,7 @@ public class IdentityMatchingServiceTests
     {
         // Arrange
         var sourceIdentity = CreateIdentityWithNameAndEmail("John", "Doe", "john.doe@example.com");
-        
+
         var candidates = new List<Identity>
         {
             CreateIdentityWithNameAndEmail("John", "Doe", "john.doe@example.com"), // High match
@@ -157,7 +157,7 @@ public class IdentityMatchingServiceTests
         Assert.NotNull(result);
         Assert.Equal(sourceIdentity, result.SourceIdentity);
         Assert.True(result.Matches.Count > 0);
-        
+
         // Verify matches are sorted by score (descending)
         for (int i = 0; i < result.Matches.Count - 1; i++)
         {
