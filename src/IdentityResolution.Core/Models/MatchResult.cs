@@ -66,6 +66,27 @@ public enum MatchStatus
 }
 
 /// <summary>
+/// Resolution decision types
+/// </summary>
+public enum ResolutionDecision
+{
+    /// <summary>
+    /// Automatically merge/resolve identities
+    /// </summary>
+    Auto,
+
+    /// <summary>
+    /// Requires manual review before resolution
+    /// </summary>
+    Review,
+
+    /// <summary>
+    /// Create new identity record
+    /// </summary>
+    New
+}
+
+/// <summary>
 /// Result of a batch matching operation
 /// </summary>
 public class MatchResult
@@ -90,7 +111,12 @@ public class MatchingConfiguration
     /// <summary>
     /// Score threshold for automatic merging
     /// </summary>
-    public double AutoMergeThreshold { get; set; } = 0.9;
+    public double AutoMergeThreshold { get; set; } = 0.97;
+
+    /// <summary>
+    /// Score threshold for requiring manual review
+    /// </summary>
+    public double ReviewThreshold { get; set; } = 0.90;
 
     /// <summary>
     /// Maximum number of matches to return

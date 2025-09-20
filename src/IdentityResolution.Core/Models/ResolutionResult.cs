@@ -16,6 +16,11 @@ public class ResolutionResult
     public List<IdentityMatch> Matches { get; set; } = new();
 
     /// <summary>
+    /// The resolution decision made
+    /// </summary>
+    public ResolutionDecision Decision { get; set; }
+
+    /// <summary>
     /// Whether any identities were automatically merged
     /// </summary>
     public bool WasAutoMerged { get; set; }
@@ -39,4 +44,24 @@ public class ResolutionResult
     /// The resolution strategy used
     /// </summary>
     public string? Strategy { get; set; }
+
+    /// <summary>
+    /// Detailed explanation of how the resolution decision was made
+    /// </summary>
+    public string? Explanation { get; set; }
+
+    /// <summary>
+    /// Audit information for governance
+    /// </summary>
+    public Dictionary<string, object> AuditData { get; set; } = new();
+
+    /// <summary>
+    /// Unique identifier for this resolution attempt
+    /// </summary>
+    public Guid ResolutionId { get; set; } = Guid.NewGuid();
+
+    /// <summary>
+    /// When this resolution was performed
+    /// </summary>
+    public DateTime ResolvedAt { get; set; } = DateTime.UtcNow;
 }

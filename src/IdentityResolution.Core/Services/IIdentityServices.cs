@@ -127,3 +127,24 @@ public interface IDataNormalizationService
     /// <returns>The normalized phone number</returns>
     string NormalizePhone(string? phone);
 }
+
+/// <summary>
+/// Service for tokenizing sensitive identifiers like SSN
+/// </summary>
+public interface ITokenizationService
+{
+    /// <summary>
+    /// Generate a deterministic token for an SSN
+    /// </summary>
+    /// <param name="ssn">The SSN to tokenize</param>
+    /// <returns>A deterministic token that can be used for matching</returns>
+    string TokenizeSSN(string ssn);
+
+    /// <summary>
+    /// Validate if a token matches an SSN
+    /// </summary>
+    /// <param name="ssn">The SSN to validate</param>
+    /// <param name="token">The token to validate against</param>
+    /// <returns>True if the token matches the SSN</returns>
+    bool ValidateSSNToken(string ssn, string token);
+}

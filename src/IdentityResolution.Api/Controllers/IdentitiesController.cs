@@ -11,15 +11,21 @@ public class IdentitiesController : ControllerBase
 {
     private readonly IIdentityStorageService _storageService;
     private readonly IDataNormalizationService _normalizationService;
+    private readonly IIdentityMatchingService _matchingService;
+    private readonly IIdentityResolutionService _resolutionService;
     private readonly ILogger<IdentitiesController> _logger;
 
     public IdentitiesController(
         IIdentityStorageService storageService,
         IDataNormalizationService normalizationService,
+        IIdentityMatchingService matchingService,
+        IIdentityResolutionService resolutionService,
         ILogger<IdentitiesController> logger)
     {
         _storageService = storageService;
         _normalizationService = normalizationService;
+        _matchingService = matchingService;
+        _resolutionService = resolutionService;
         _logger = logger;
     }
 
@@ -141,5 +147,53 @@ public class IdentitiesController : ControllerBase
         }
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Find potential matches for an identity
+    /// </summary>
+    /// <param name="identity">The identity to find matches for</param>
+    [HttpPost("match")]
+    public async Task<ActionResult<MatchResult>> FindMatches([FromBody] Identity identity)
+    {
+        try
+        {
+            var normalizedIdentity = _normalizationService.NormalizeIdentity(identity);
+            var matchResult = await _matchingService.FindMatchesAsync(normalizedIdentity);
+
+            _logger.LogInformation("Found {MatchCount} potential matches for identity matching request",
+                matchResult.Matches.Count);
+
+            return Ok(matchResult);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error finding matches for identity");
+            return StatusCode(500, "Error occurred while finding matches");
+        }
+    }
+
+    /// <summary>
+    /// Resolve an identity using deterministic and probabilistic matching
+    /// </summary>
+    /// <param name="identity">The identity to resolve</param>
+    [HttpPost("resolve")]
+    [Authorize] // Add authorization requirement for resolve operations
+    public async Task<ActionResult<ResolutionResult>> ResolveIdentity([FromBody] Identity identity)
+    {
+        try
+        {
+            var resolutionResult = await _resolutionService.ResolveIdentityAsync(identity);
+
+            _logger.LogInformation("Identity resolution completed with decision {Decision} for resolution {ResolutionId}",
+                resolutionResult.Decision, resolutionResult.ResolutionId);
+
+            return Ok(resolutionResult);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resolving identity");
+            return StatusCode(500, "Error occurred during identity resolution");
+        }
     }
 }

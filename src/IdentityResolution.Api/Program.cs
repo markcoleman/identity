@@ -26,6 +26,9 @@ builder.Services.AddAuthorization(options =>
 // Add identity resolution services
 builder.Services.AddSingleton<IIdentityStorageService, InMemoryIdentityStorageService>();
 builder.Services.AddScoped<IDataNormalizationService, DataNormalizationService>();
+builder.Services.AddScoped<ITokenizationService, TokenizationService>();
+builder.Services.AddScoped<IIdentityMatchingService, IdentityMatchingService>();
+builder.Services.AddScoped<IIdentityResolutionService, IdentityResolutionService>();
 
 // Add CORS for development
 builder.Services.AddCors(options =>
