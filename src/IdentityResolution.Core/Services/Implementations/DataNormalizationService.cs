@@ -103,7 +103,7 @@ public class DataNormalizationService : IDataNormalizationService
         // Basic email validation
         if (!IsValidEmail(normalized))
         {
-            _logger.LogWarning("Invalid email format: {Email}", email);
+            _logger.LogWarning("Invalid email format detected");
             return string.Empty;
         }
 
@@ -169,7 +169,11 @@ public class DataNormalizationService : IDataNormalizationService
             var addr = new System.Net.Mail.MailAddress(email);
             return addr.Address == email;
         }
-        catch
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (FormatException)
         {
             return false;
         }

@@ -29,7 +29,7 @@ public class InMemoryIdentityStorageService : IIdentityStorageService
 
         _identities[identity.Id] = identity;
 
-        _logger.LogInformation("Stored identity {IdentityId} from source {Source}", identity.Id, identity.Source);
+        _logger.LogInformation("Stored identity {IdentityId}", identity.Id);
 
         return Task.FromResult(identity);
     }

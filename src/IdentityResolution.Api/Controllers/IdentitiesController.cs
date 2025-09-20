@@ -64,18 +64,22 @@ public class IdentitiesController : ControllerBase
             // Store the identity
             var storedIdentity = await _storageService.StoreIdentityAsync(normalizedIdentity);
 
-            _logger.LogInformation("Created identity {IdentityId} from source {Source}",
-                storedIdentity.Id, storedIdentity.Source);
+            _logger.LogInformation("Created identity {IdentityId}", storedIdentity.Id);
 
             return CreatedAtAction(
                 nameof(GetIdentity),
                 new { id = storedIdentity.Id },
                 storedIdentity);
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
+        {
+            _logger.LogError(ex, "Invalid identity data provided");
+            return BadRequest("Invalid identity data");
+        }
+        catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Error creating identity");
-            return BadRequest("Failed to create identity");
+            return StatusCode(500, "Internal server error");
         }
     }
 
@@ -111,10 +115,10 @@ public class IdentitiesController : ControllerBase
         {
             return NotFound();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Error updating identity {IdentityId}", id);
-            return BadRequest("Failed to update identity");
+            return StatusCode(500, "Internal server error");
         }
     }
 
