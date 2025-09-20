@@ -15,7 +15,7 @@ public interface IIdentityMatchingService
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>A match result containing potential matches</returns>
     Task<MatchResult> FindMatchesAsync(Identity identity, MatchingConfiguration? configuration = null, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Compare two specific identities and return a match score
     /// </summary>
@@ -38,7 +38,7 @@ public interface IIdentityStorageService
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The stored identity with any generated IDs</returns>
     Task<Identity> StoreIdentityAsync(Identity identity, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Retrieve an identity by ID
     /// </summary>
@@ -46,14 +46,14 @@ public interface IIdentityStorageService
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The identity or null if not found</returns>
     Task<Identity?> GetIdentityAsync(Guid id, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Get all identities (for matching purposes)
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>All stored identities</returns>
     Task<IEnumerable<Identity>> GetAllIdentitiesAsync(CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Update an existing identity
     /// </summary>
@@ -61,7 +61,7 @@ public interface IIdentityStorageService
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The updated identity</returns>
     Task<Identity> UpdateIdentityAsync(Identity identity, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Delete an identity
     /// </summary>
@@ -84,7 +84,7 @@ public interface IIdentityResolutionService
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Resolution result with merged identity and match information</returns>
     Task<ResolutionResult> ResolveIdentityAsync(Identity identity, MatchingConfiguration? configuration = null, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Merge two identities into one
     /// </summary>
@@ -105,21 +105,21 @@ public interface IDataNormalizationService
     /// <param name="identity">The identity to normalize</param>
     /// <returns>The normalized identity</returns>
     Identity NormalizeIdentity(Identity identity);
-    
+
     /// <summary>
     /// Normalize a name field
     /// </summary>
     /// <param name="name">The name to normalize</param>
     /// <returns>The normalized name</returns>
     string NormalizeName(string? name);
-    
+
     /// <summary>
     /// Normalize an email address
     /// </summary>
     /// <param name="email">The email to normalize</param>
     /// <returns>The normalized email</returns>
     string NormalizeEmail(string? email);
-    
+
     /// <summary>
     /// Normalize a phone number
     /// </summary>

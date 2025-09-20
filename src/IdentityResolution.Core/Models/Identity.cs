@@ -6,42 +6,42 @@ namespace IdentityResolution.Core.Models;
 public class Identity
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    
+
     /// <summary>
     /// When this identity record was created
     /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    
+
     /// <summary>
     /// When this identity record was last updated
     /// </summary>
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-    
+
     /// <summary>
     /// Personal information
     /// </summary>
     public PersonalInfo PersonalInfo { get; set; } = new();
-    
+
     /// <summary>
     /// Contact information
     /// </summary>
     public ContactInfo ContactInfo { get; set; } = new();
-    
+
     /// <summary>
     /// Various identifiers
     /// </summary>
     public List<Identifier> Identifiers { get; set; } = new();
-    
+
     /// <summary>
     /// Additional attributes as key-value pairs
     /// </summary>
     public Dictionary<string, string> Attributes { get; set; } = new();
-    
+
     /// <summary>
     /// Source system or dataset this identity came from
     /// </summary>
     public string? Source { get; set; }
-    
+
     /// <summary>
     /// Confidence score of this identity record (0.0 to 1.0)
     /// </summary>
@@ -84,7 +84,7 @@ public class Address
     public string? State { get; set; }
     public string? PostalCode { get; set; }
     public string? Country { get; set; }
-    
+
     public override string ToString()
     {
         var parts = new List<string?> { Street1, Street2, City, State, PostalCode, Country }
@@ -103,9 +103,9 @@ public class Identifier
     public string? Source { get; set; }
     public DateTime? IssuedDate { get; set; }
     public DateTime? ExpirationDate { get; set; }
-    
+
     public Identifier() { }
-    
+
     public Identifier(string type, string value, string? source = null)
     {
         Type = type;

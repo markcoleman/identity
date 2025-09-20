@@ -78,7 +78,7 @@ public class InMemoryIdentityStorageServiceTests
         // Arrange
         var identity1 = new Identity { PersonalInfo = new PersonalInfo { FirstName = "John" } };
         var identity2 = new Identity { PersonalInfo = new PersonalInfo { FirstName = "Jane" } };
-        
+
         await _service.StoreIdentityAsync(identity1);
         await _service.StoreIdentityAsync(identity2);
 
@@ -101,7 +101,7 @@ public class InMemoryIdentityStorageServiceTests
 
         // Assert
         Assert.True(result);
-        
+
         // Verify it's actually deleted
         var retrieved = await _service.GetIdentityAsync(stored.Id);
         Assert.Null(retrieved);

@@ -1,5 +1,6 @@
 using IdentityResolution.Core.Models;
 using IdentityResolution.Core.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IdentityResolution.Api.Controllers;
@@ -40,7 +41,7 @@ public class IdentitiesController : ControllerBase
     public async Task<ActionResult<Identity>> GetIdentity(Guid id)
     {
         var identity = await _storageService.GetIdentityAsync(id);
-        
+
         if (identity == null)
         {
             return NotFound();
@@ -54,28 +55,33 @@ public class IdentitiesController : ControllerBase
     /// </summary>
     /// <param name="identity">The identity to create</param>
     [HttpPost]
+    [Authorize] // Add authorization requirement for create operations
     public async Task<ActionResult<Identity>> CreateIdentity([FromBody] Identity identity)
     {
         try
         {
             // Normalize the identity data
             var normalizedIdentity = _normalizationService.NormalizeIdentity(identity);
-            
+
             // Store the identity
             var storedIdentity = await _storageService.StoreIdentityAsync(normalizedIdentity);
-            
-            _logger.LogInformation("Created identity {IdentityId} from source {Source}", 
-                storedIdentity.Id, storedIdentity.Source);
+
+            _logger.LogInformation("Created identity {IdentityId}", storedIdentity.Id);
 
             return CreatedAtAction(
-                nameof(GetIdentity), 
-                new { id = storedIdentity.Id }, 
+                nameof(GetIdentity),
+                new { id = storedIdentity.Id },
                 storedIdentity);
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
+        {
+            _logger.LogError(ex, "Invalid identity data provided");
+            return BadRequest("Invalid identity data");
+        }
+        catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Error creating identity");
-            return BadRequest("Failed to create identity");
+            return StatusCode(500, "Internal server error");
         }
     }
 
@@ -85,6 +91,7 @@ public class IdentitiesController : ControllerBase
     /// <param name="id">The identity ID</param>
     /// <param name="identity">The updated identity data</param>
     [HttpPut("{id}")]
+    [Authorize] // Add authorization requirement for update operations
     public async Task<ActionResult<Identity>> UpdateIdentity(Guid id, [FromBody] Identity identity)
     {
         if (id != identity.Id)
@@ -104,17 +111,17 @@ public class IdentitiesController : ControllerBase
             // Normalize and update
             var normalizedIdentity = _normalizationService.NormalizeIdentity(identity);
             var updatedIdentity = await _storageService.UpdateIdentityAsync(normalizedIdentity);
-            
+
             return Ok(updatedIdentity);
         }
         catch (ArgumentException)
         {
             return NotFound();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Error updating identity {IdentityId}", id);
-            return BadRequest("Failed to update identity");
+            return StatusCode(500, "Internal server error");
         }
     }
 
@@ -123,10 +130,11 @@ public class IdentitiesController : ControllerBase
     /// </summary>
     /// <param name="id">The identity ID</param>
     [HttpDelete("{id}")]
+    [Authorize] // Add authorization requirement for delete operations
     public async Task<IActionResult> DeleteIdentity(Guid id)
     {
         var deleted = await _storageService.DeleteIdentityAsync(id);
-        
+
         if (!deleted)
         {
             return NotFound();

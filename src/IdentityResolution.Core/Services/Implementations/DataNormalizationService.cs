@@ -1,7 +1,7 @@
+using System.Text.RegularExpressions;
 using IdentityResolution.Core.Models;
 using IdentityResolution.Core.Services;
 using Microsoft.Extensions.Logging;
-using System.Text.RegularExpressions;
 
 namespace IdentityResolution.Core.Services.Implementations;
 
@@ -67,7 +67,7 @@ public class DataNormalizationService : IDataNormalizationService
         };
 
         _logger.LogDebug("Normalized identity {IdentityId}", identity.Id);
-        
+
         return normalized;
     }
 
@@ -78,18 +78,18 @@ public class DataNormalizationService : IDataNormalizationService
 
         // Remove extra whitespace and convert to title case
         var cleaned = Regex.Replace(name.Trim(), @"\s+", " ");
-        
+
         // Basic title case conversion
         var words = cleaned.Split(' ');
         for (int i = 0; i < words.Length; i++)
         {
             if (words[i].Length > 0)
             {
-                words[i] = char.ToUpperInvariant(words[i][0]) + 
+                words[i] = char.ToUpperInvariant(words[i][0]) +
                           (words[i].Length > 1 ? words[i][1..].ToLowerInvariant() : "");
             }
         }
-        
+
         return string.Join(" ", words);
     }
 
@@ -99,11 +99,11 @@ public class DataNormalizationService : IDataNormalizationService
             return string.Empty;
 
         var normalized = email.Trim().ToLowerInvariant();
-        
+
         // Basic email validation
         if (!IsValidEmail(normalized))
         {
-            _logger.LogWarning("Invalid email format: {Email}", email);
+            _logger.LogWarning("Invalid email format detected");
             return string.Empty;
         }
 
@@ -117,7 +117,7 @@ public class DataNormalizationService : IDataNormalizationService
 
         // Remove all non-digit characters
         var digitsOnly = Regex.Replace(phone, @"[^\d]", "");
-        
+
         // Handle US phone numbers
         if (digitsOnly.Length == 10)
         {
@@ -138,13 +138,13 @@ public class DataNormalizationService : IDataNormalizationService
             return string.Empty;
 
         var cleaned = postalCode.Trim().ToUpperInvariant();
-        
+
         // US ZIP code format
         if (Regex.IsMatch(cleaned, @"^\d{5}$") || Regex.IsMatch(cleaned, @"^\d{5}-\d{4}$"))
         {
             return cleaned;
         }
-        
+
         // Remove spaces for other formats
         return Regex.Replace(cleaned, @"\s", "");
     }
@@ -152,7 +152,7 @@ public class DataNormalizationService : IDataNormalizationService
     private string NormalizeIdentifierValue(string value, string type)
     {
         var cleaned = value?.Trim() ?? string.Empty;
-        
+
         return type.ToUpperInvariant() switch
         {
             IdentifierTypes.SocialSecurityNumber => Regex.Replace(cleaned, @"[^\d]", ""),
@@ -169,7 +169,11 @@ public class DataNormalizationService : IDataNormalizationService
             var addr = new System.Net.Mail.MailAddress(email);
             return addr.Address == email;
         }
-        catch
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (FormatException)
         {
             return false;
         }
