@@ -49,15 +49,6 @@ jobs:
         path: |
           **/*.trx
           **/coverage.cobertura.xml
-          
-    - name: Publish test results
-      if: always()
-      uses: dorny/test-reporter@v1
-      with:
-        name: Test Results
-        path: '**/*.trx'
-        reporter: dotnet-trx
-        fail-on-error: true
 
   code-quality:
     runs-on: ubuntu-latest
