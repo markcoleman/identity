@@ -16,9 +16,9 @@ public interface IBatchProcessingService
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Batch processing result</returns>
     Task<BatchProcessingResult> ProcessBatchAsync(
-        Stream stream, 
-        BatchInputFormat format, 
-        BatchProcessingConfiguration? configuration = null, 
+        Stream stream,
+        BatchInputFormat format,
+        BatchProcessingConfiguration? configuration = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

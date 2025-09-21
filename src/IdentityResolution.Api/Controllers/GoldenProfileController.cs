@@ -17,7 +17,7 @@ public class GoldenProfileController : ControllerBase
     private readonly ILogger<GoldenProfileController> _logger;
 
     public GoldenProfileController(
-        IGoldenProfileService goldenProfileService, 
+        IGoldenProfileService goldenProfileService,
         IAuditService auditService,
         ILogger<GoldenProfileController> logger)
     {
@@ -105,7 +105,7 @@ public class GoldenProfileController : ControllerBase
     [HttpGet("profiles")]
     [Authorize]
     public async Task<ActionResult<IEnumerable<GoldenProfile>>> GetGoldenProfiles(
-        [FromQuery] int skip = 0, 
+        [FromQuery] int skip = 0,
         [FromQuery] int take = 50)
     {
         try
@@ -182,12 +182,12 @@ public class GoldenProfileController : ControllerBase
 
             await _auditService.RecordAuditAsync(auditRecord);
 
-            _logger.LogInformation("Created golden profile with ID {PersonId}", 
+            _logger.LogInformation("Created golden profile with ID {PersonId}",
                 createdProfile.PersonId);
 
             return CreatedAtAction(
-                nameof(GetGoldenProfile), 
-                new { personId = createdProfile.PersonId }, 
+                nameof(GetGoldenProfile),
+                new { personId = createdProfile.PersonId },
                 createdProfile);
         }
         catch (Exception ex)
@@ -261,8 +261,8 @@ public class GoldenProfileController : ControllerBase
         try
         {
             var mergedProfile = await _goldenProfileService.MergeGoldenProfilesAsync(
-                mergeRequest.PrimaryPersonId, 
-                mergeRequest.SecondaryPersonId, 
+                mergeRequest.PrimaryPersonId,
+                mergeRequest.SecondaryPersonId,
                 mergeRequest.Actor);
 
             // Record merge event
@@ -305,8 +305,8 @@ public class GoldenProfileController : ControllerBase
         try
         {
             var resultProfiles = await _goldenProfileService.SplitGoldenProfileAsync(
-                splitRequest.PersonId, 
-                splitRequest.SplitIdentityIds, 
+                splitRequest.PersonId,
+                splitRequest.SplitIdentityIds,
                 splitRequest.Actor);
 
             // Record split event

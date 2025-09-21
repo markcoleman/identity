@@ -1,6 +1,6 @@
 using System.Diagnostics;
-using System.Text.Json;
 using System.Globalization;
+using System.Text.Json;
 using IdentityResolution.Core.Models;
 using Microsoft.Extensions.Logging;
 
@@ -14,7 +14,7 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
     private readonly IIdentityResolutionService _resolutionService;
     private readonly IDataNormalizationService _normalizationService;
     private readonly ILogger<InMemoryBatchProcessingService> _logger;
-    
+
     // In-memory storage for batch jobs
     private readonly Dictionary<Guid, BatchJobStatus> _batchJobs = new();
     private readonly Dictionary<Guid, BatchProcessingResult> _batchResults = new();
@@ -30,14 +30,14 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
     }
 
     public async Task<BatchProcessingResult> ProcessBatchAsync(
-        Stream stream, 
-        BatchInputFormat format, 
-        BatchProcessingConfiguration? configuration = null, 
+        Stream stream,
+        BatchInputFormat format,
+        BatchProcessingConfiguration? configuration = null,
         CancellationToken cancellationToken = default)
     {
         configuration ??= new BatchProcessingConfiguration();
         var stopwatch = Stopwatch.StartNew();
-        
+
         var result = new BatchProcessingResult
         {
             StartedAt = DateTime.UtcNow,
@@ -77,7 +77,7 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
                 ErrorMessage = ex.Message,
                 ExceptionDetails = ex.ToString()
             });
-            
+
             result.CompletedAt = DateTime.UtcNow;
             result.TotalProcessingTime = stopwatch.Elapsed;
             return result;
@@ -87,7 +87,7 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
     public Task<Guid> ScheduleBatchProcessingAsync(BatchProcessingJobRequest jobRequest)
     {
         var jobId = Guid.NewGuid();
-        
+
         var jobStatus = new BatchJobStatus
         {
             JobId = jobId,
@@ -110,8 +110,8 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
                 // In a real implementation, this would read from blob storage or other sources
                 using var fileStream = File.OpenRead(jobRequest.Source);
                 var result = await ProcessBatchAsync(
-                    fileStream, 
-                    jobRequest.InputFormat, 
+                    fileStream,
+                    jobRequest.InputFormat,
                     jobRequest.Configuration);
 
                 // Store the results
@@ -121,7 +121,7 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
                 jobStatus.TotalCount = result.TotalRecords;
                 jobStatus.Status = JobStatus.Completed;
                 jobStatus.CurrentOperation = "Completed";
-                
+
                 _logger.LogInformation("Batch processing job {JobId} completed successfully", jobId);
             }
             catch (Exception ex)
@@ -141,11 +141,11 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
     public Task<BatchJobStatus> GetBatchJobStatusAsync(Guid jobId)
     {
         _batchJobs.TryGetValue(jobId, out var status);
-        return Task.FromResult(status ?? new BatchJobStatus 
-        { 
-            JobId = jobId, 
-            Status = JobStatus.Failed, 
-            ErrorMessage = "Job not found" 
+        return Task.FromResult(status ?? new BatchJobStatus
+        {
+            JobId = jobId,
+            Status = JobStatus.Failed,
+            ErrorMessage = "Job not found"
         });
     }
 
@@ -157,12 +157,12 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
         }
 
         var stream = new MemoryStream();
-        
+
         if (format == BatchOutputFormat.Json)
         {
-            await JsonSerializer.SerializeAsync(stream, result, new JsonSerializerOptions 
-            { 
-                WriteIndented = true 
+            await JsonSerializer.SerializeAsync(stream, result, new JsonSerializerOptions
+            {
+                WriteIndented = true
             });
         }
         else if (format == BatchOutputFormat.Csv)
@@ -176,7 +176,7 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
 
     public Task<bool> CancelBatchJobAsync(Guid jobId)
     {
-        if (_batchJobs.TryGetValue(jobId, out var status) && 
+        if (_batchJobs.TryGetValue(jobId, out var status) &&
             (status.Status == JobStatus.Queued || status.Status == JobStatus.Running))
         {
             status.Status = JobStatus.Cancelled;
@@ -189,8 +189,8 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
     }
 
     private async Task<List<Identity>> ParseIdentitiesFromStreamAsync(
-        Stream stream, 
-        BatchInputFormat format, 
+        Stream stream,
+        BatchInputFormat format,
         CancellationToken cancellationToken)
     {
         var identities = new List<Identity>();
@@ -202,7 +202,7 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
                 PropertyNameCaseInsensitive = true,
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             };
-            
+
             var jsonData = await JsonSerializer.DeserializeAsync<List<Identity>>(stream, options, cancellationToken);
             if (jsonData != null)
             {
@@ -221,19 +221,19 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
     {
         var identities = new List<Identity>();
         using var reader = new StreamReader(stream);
-        
+
         string? headerLine = await reader.ReadLineAsync();
         if (headerLine == null) return identities;
 
         var headers = headerLine.Split(',').Select(h => h.Trim().ToLowerInvariant()).ToArray();
-        
+
         string? line;
         int lineNumber = 2; // Start from 2 since header is line 1
-        
+
         while ((line = await reader.ReadLineAsync()) != null)
         {
             if (cancellationToken.IsCancellationRequested) break;
-            
+
             try
             {
                 var identity = ParseCsvLine(line, headers, lineNumber);
@@ -246,7 +246,7 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
             {
                 _logger.LogWarning(ex, "Failed to parse CSV line {LineNumber}: {Line}", lineNumber, line);
             }
-            
+
             lineNumber++;
         }
 
@@ -256,7 +256,7 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
     private Identity? ParseCsvLine(string line, string[] headers, int lineNumber)
     {
         var values = line.Split(',').Select(v => v.Trim('"', ' ')).ToArray();
-        
+
         if (values.Length != headers.Length)
         {
             _logger.LogWarning("CSV line {LineNumber} has {ValueCount} values but expected {HeaderCount}",
@@ -265,12 +265,12 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
         }
 
         var identity = new Identity();
-        
+
         for (int i = 0; i < headers.Length; i++)
         {
             var header = headers[i];
             var value = values[i];
-            
+
             if (string.IsNullOrWhiteSpace(value)) continue;
 
             switch (header)
@@ -302,10 +302,10 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
                     identity.ContactInfo.Phone = value;
                     break;
                 case "ssn":
-                    identity.Identifiers.Add(new Identifier 
-                    { 
-                        Type = "SSN", 
-                        Value = value 
+                    identity.Identifiers.Add(new Identifier
+                    {
+                        Type = "SSN",
+                        Value = value
                     });
                     break;
                 case "address":
@@ -337,9 +337,9 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
         for (int i = 0; i < identities.Count; i += configuration.BatchSize)
         {
             if (cancellationToken.IsCancellationRequested) break;
-            
+
             var batch = identities.Skip(i).Take(configuration.BatchSize).ToList();
-            
+
             var batchTask = Task.Run(async () =>
             {
                 await semaphore.WaitAsync(cancellationToken);
@@ -348,21 +348,21 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
                     foreach (var identity in batch)
                     {
                         if (cancellationToken.IsCancellationRequested) break;
-                        
+
                         var recordResult = await ProcessSingleIdentityAsync(
-                            identity, 
-                            result.Results.Count + 1, 
+                            identity,
+                            result.Results.Count + 1,
                             configuration,
                             cancellationToken);
-                        
+
                         lock (result)
                         {
                             result.Results.Add(recordResult);
-                            
+
                             if (recordResult.IsSuccess)
                             {
                                 result.SuccessfullyProcessed++;
-                                
+
                                 if (result.DecisionCounts.ContainsKey(recordResult.Decision))
                                     result.DecisionCounts[recordResult.Decision]++;
                                 else
@@ -372,7 +372,7 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
                             {
                                 result.Failed++;
                                 Interlocked.Increment(ref errorCount);
-                                
+
                                 if (!configuration.ContinueOnError || errorCount >= configuration.MaxErrorsBeforeStop)
                                 {
                                     cancellationToken.ThrowIfCancellationRequested();
@@ -386,7 +386,7 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
                     semaphore.Release();
                 }
             }, cancellationToken);
-            
+
             tasks.Add(batchTask);
         }
 
@@ -423,8 +423,8 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
 
             // Resolve the identity using deterministic + probabilistic matching
             var resolutionResult = await _resolutionService.ResolveIdentityAsync(
-                normalizedIdentity, 
-                configuration.MatchingConfiguration, 
+                normalizedIdentity,
+                configuration.MatchingConfiguration,
                 cancellationToken);
 
             // Map to batch record result
@@ -443,7 +443,7 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
                 recordResult.Features["overall_score"] = firstMatch.OverallScore;
                 recordResult.Features["match_count"] = resolutionResult.Matches.Count;
                 recordResult.Features["algorithm"] = firstMatch.Algorithm ?? "default";
-                
+
                 // Add field scores if available
                 foreach (var fieldScore in firstMatch.FieldScores)
                 {
@@ -509,7 +509,7 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
         {
             var throughputPerSecond = result.TotalRecords / result.TotalProcessingTime.TotalSeconds;
             var throughputPerHour = (int)(throughputPerSecond * 3600);
-            
+
             _logger.LogInformation("Batch processing throughput: {ThroughputPerHour} records/hour", throughputPerHour);
         }
     }
@@ -517,10 +517,10 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
     private async Task WriteCsvResultsAsync(Stream stream, BatchProcessingResult result)
     {
         using var writer = new StreamWriter(stream, leaveOpen: true);
-        
+
         // Write CSV header
         await writer.WriteLineAsync("RecordNumber,EPID,Decision,Score,IsSuccess,ErrorCode,ErrorMessage,ProcessingTimeMs");
-        
+
         // Write data rows
         foreach (var record in result.Results)
         {
@@ -532,7 +532,7 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
                       $"\"{record.ErrorCode ?? ""}\"," +
                       $"\"{record.ErrorMessage ?? ""}\"," +
                       $"{record.ProcessingTime.TotalMilliseconds:F0}";
-            
+
             await writer.WriteLineAsync(line);
         }
     }

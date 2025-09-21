@@ -74,16 +74,16 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
     {
         // Arrange - Create identity with strong signals but no deterministic match
         var existingIdentity = CreateTestIdentity(
-            "Sarah", "Mitchell", 
-            new DateTime(1992, 4, 18), 
+            "Sarah", "Mitchell",
+            new DateTime(1992, 4, 18),
             "sarah.mitchell@example.com",
             "(555) 234-5678");
 
         await StorageService.StoreIdentityAsync(existingIdentity);
 
         var candidateIdentity = CreateTestIdentity(
-            "Sarah", "Mitchell", 
-            new DateTime(1992, 4, 18), 
+            "Sarah", "Mitchell",
+            new DateTime(1992, 4, 18),
             "sarah.mitchell@example.com", // Exact match on multiple fields
             "(555) 234-5678");
 
@@ -93,7 +93,7 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
         // Assert
         result.Should().NotBeNull();
         result.Matches.Should().HaveCount(1);
-        
+
         var match = result.Matches.First();
         match.OverallScore.Should().BeGreaterThanOrEqualTo(0.97, "High probabilistic match should score ≥0.97");
         match.IsAutoMergeCandidate.Should().BeTrue("Score ≥0.97 should result in auto-merge");
@@ -105,8 +105,8 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
     {
         // Arrange - Create identity with moderate signals
         var existingIdentity = CreateTestIdentity(
-            "Michael", "Johnson", 
-            new DateTime(1980, 11, 25), 
+            "Michael", "Johnson",
+            new DateTime(1980, 11, 25),
             "michael.johnson@company.com",
             "(555) 345-6789");
 
@@ -114,7 +114,7 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
 
         var candidateIdentity = CreateTestIdentity(
             "Mike", "Johnson", // Similar but not exact first name
-            new DateTime(1980, 11, 25), 
+            new DateTime(1980, 11, 25),
             "m.johnson@personal.com", // Different email domain
             "(555) 345-6789"); // Same phone
 
@@ -124,7 +124,7 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
         // Assert
         result.Should().NotBeNull();
         result.Matches.Should().HaveCount(1);
-        
+
         var match = result.Matches.First();
         match.OverallScore.Should().BeInRange(0.90, 0.97, "Medium probabilistic match should be in review range");
         match.Status.Should().Be(MatchStatus.RequiresReview, "Score 0.90-0.97 should require review");
@@ -135,8 +135,8 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
     {
         // Arrange - Create identity with weak signals
         var existingIdentity = CreateTestIdentity(
-            "Jennifer", "Adams", 
-            new DateTime(1975, 6, 30), 
+            "Jennifer", "Adams",
+            new DateTime(1975, 6, 30),
             "jennifer.adams@example.com",
             "(555) 456-7890");
 
@@ -191,12 +191,12 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
         // Assert
         result.Should().NotBeNull();
         result.Matches.Should().HaveCountGreaterThan(0);
-        
+
         var sortedMatches = result.Matches.OrderByDescending(m => m.OverallScore).ToList();
-        
+
         // Exact email match should score highest
         sortedMatches[0].OverallScore.Should().BeGreaterThan(sortedMatches[1].OverallScore);
-        
+
         // Similar email should score higher than completely different
         if (sortedMatches.Count >= 3)
         {
@@ -209,16 +209,16 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
     {
         // Arrange - Test phone number normalization and matching
         var existingIdentity = CreateTestIdentity(
-            "Lisa", "Garcia", 
-            new DateTime(1985, 2, 14), 
+            "Lisa", "Garcia",
+            new DateTime(1985, 2, 14),
             "lisa.garcia@example.com",
             "(555) 123-4567");
 
         await StorageService.StoreIdentityAsync(existingIdentity);
 
         var candidateIdentity = CreateTestIdentity(
-            "Lisa", "Garcia", 
-            new DateTime(1985, 2, 14), 
+            "Lisa", "Garcia",
+            new DateTime(1985, 2, 14),
             "lisa.garcia@example.com",
             "555-123-4567"); // Different format, same number
 
@@ -228,7 +228,7 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
         // Assert
         result.Should().NotBeNull();
         result.Matches.Should().HaveCount(1);
-        
+
         var match = result.Matches.First();
         match.OverallScore.Should().BeGreaterThanOrEqualTo(0.97, "Normalized phone match should score high");
         match.MatchReasons.Should().Contain(r => r.Contains("Phone") || r.Contains("phone"));
@@ -239,8 +239,8 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
     {
         // Arrange
         var existingIdentity = CreateTestIdentity(
-            "Kevin", "Martinez", 
-            new DateTime(1990, 8, 5), 
+            "Kevin", "Martinez",
+            new DateTime(1990, 8, 5),
             "kevin.martinez@example.com",
             "(555) 567-8901");
 
@@ -248,8 +248,8 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
 
         // Test high confidence scenario
         var highConfidenceCandidate = CreateTestIdentity(
-            "Kevin", "Martinez", 
-            new DateTime(1990, 8, 5), 
+            "Kevin", "Martinez",
+            new DateTime(1990, 8, 5),
             "kevin.martinez@example.com",
             "(555) 567-8901");
 
@@ -259,11 +259,11 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
         // Assert
         highResult.Should().NotBeNull();
         highResult.Decision.Should().Be(ResolutionDecision.Auto, "High confidence should auto-merge");
-        
+
         // Test medium confidence scenario  
         var mediumConfidenceCandidate = CreateTestIdentity(
             "Kev", "Martinez", // Slightly different name
-            new DateTime(1990, 8, 5), 
+            new DateTime(1990, 8, 5),
             "k.martinez@workplace.com", // Different email
             "(555) 567-8901"); // Same phone
 
@@ -294,8 +294,8 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
         }
 
         var candidateIdentity = CreateTestIdentity(
-            "Anna", "Wilson", 
-            new DateTime(1988, 3, 20), 
+            "Anna", "Wilson",
+            new DateTime(1988, 3, 20),
             "anna.wilson.new@example.com",
             "(555) 999-9999");
 
@@ -305,11 +305,11 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
         // Assert
         result.Should().NotBeNull();
         result.Matches.Should().NotBeEmpty();
-        
+
         // Should be sorted by confidence score
         var scores = result.Matches.Select(m => m.OverallScore).ToList();
         scores.Should().BeInDescendingOrder("Matches should be sorted by score");
-        
+
         // Top match should be high confidence
         result.Matches.First().OverallScore.Should().BeGreaterThan(0.80);
     }
@@ -319,8 +319,8 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
     {
         // Arrange - Create identity with potential typos
         var existingIdentity = CreateTestIdentity(
-            "Christopher", "Thompson", 
-            new DateTime(1982, 12, 1), 
+            "Christopher", "Thompson",
+            new DateTime(1982, 12, 1),
             "christopher.thompson@example.com",
             "(555) 678-9012");
 
@@ -328,7 +328,7 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
 
         var candidateIdentity = CreateTestIdentity(
             "Christoper", "Thompsen", // Slight typos in both names
-            new DateTime(1982, 12, 1), 
+            new DateTime(1982, 12, 1),
             "christopher.thompson@example.com", // Same email
             "(555) 678-9012"); // Same phone
 
@@ -338,7 +338,7 @@ public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
         // Assert
         result.Should().NotBeNull();
         result.Matches.Should().HaveCountGreaterThan(0);
-        
+
         var match = result.Matches.First();
         match.OverallScore.Should().BeGreaterThan(0.85, "Should handle minor typos with fuzzy matching");
         match.MatchReasons.Should().Contain(r => r.Contains("Email") || r.Contains("Phone"));

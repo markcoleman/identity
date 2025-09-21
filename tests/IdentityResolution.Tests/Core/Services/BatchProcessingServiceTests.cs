@@ -22,7 +22,7 @@ public class BatchProcessingServiceTests
         _mockResolutionService = new Mock<IIdentityResolutionService>();
         _mockNormalizationService = new Mock<IDataNormalizationService>();
         _mockLogger = new Mock<ILogger<InMemoryBatchProcessingService>>();
-        
+
         _batchProcessingService = new InMemoryBatchProcessingService(
             _mockResolutionService.Object,
             _mockNormalizationService.Object,
@@ -112,7 +112,7 @@ Jane,Smith,1985-05-15,jane.smith@example.com";
         result.Failed.Should().Be(0);
         result.Results.Should().HaveCount(2);
         result.DecisionCounts[ResolutionDecision.Auto].Should().Be(2);
-        
+
         // Verify the parsed data
         result.Results[0].InputIdentity.PersonalInfo.FirstName.Should().Be("John");
         result.Results[0].InputIdentity.PersonalInfo.LastName.Should().Be("Doe");
@@ -162,7 +162,7 @@ Jane,Smith,1985-05-15,jane.smith@example.com";
         result.SuccessfullyProcessed.Should().Be(1);
         result.Failed.Should().Be(1);
         result.Results.Should().HaveCount(2);
-        
+
         // Check that the failed record has error information
         var failedRecord = result.Results.FirstOrDefault(r => !r.IsSuccess);
         failedRecord.Should().NotBeNull();
@@ -216,7 +216,7 @@ Jane,Smith,1985-05-15,jane.smith@example.com";
         result.TotalRecords.Should().Be(10);
         result.SuccessfullyProcessed.Should().Be(10);
         result.Failed.Should().Be(0);
-        
+
         // Should process faster than sequential (10 * 10ms = 100ms)
         stopwatch.ElapsedMilliseconds.Should().BeLessThan(100);
     }
@@ -351,7 +351,7 @@ Jane,Smith,1985-05-15,jane.smith@example.com";
         result.Should().NotBeNull();
         result.TotalRecords.Should().Be(1);
         result.SuccessfullyProcessed.Should().Be(1);
-        
+
         var processedRecord = result.Results.First();
         processedRecord.InputIdentity.PersonalInfo.FirstName.Should().NotBeNullOrEmpty();
         processedRecord.InputIdentity.PersonalInfo.LastName.Should().NotBeNullOrEmpty();

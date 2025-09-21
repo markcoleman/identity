@@ -131,7 +131,7 @@ public class InMemoryReprocessingService : IReprocessingService
     public async Task<BatchReprocessingResult> BatchReplayMatchesAsync(DateTime fromDate, DateTime toDate, string newAlgorithmVersion, MatchingConfiguration? configuration = null, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
-        
+
         var batchResult = new BatchReprocessingResult
         {
             StartedAt = DateTime.UtcNow
@@ -209,7 +209,7 @@ public class InMemoryReprocessingService : IReprocessingService
         // Compare scores
         var originalBestScore = originalMatch.MatchResult.Matches.FirstOrDefault()?.OverallScore ?? 0.0;
         var reprocessedBestScore = reprocessedMatch.MatchResult.Matches.FirstOrDefault()?.OverallScore ?? 0.0;
-        
+
         comparison.ScoreDifferences["BestScore"] = reprocessedBestScore - originalBestScore;
 
         // Find new matches
@@ -246,7 +246,7 @@ public class InMemoryReprocessingService : IReprocessingService
     public Task<Guid> ScheduleBatchReprocessingAsync(BatchReprocessingJobRequest jobRequest)
     {
         var jobId = Guid.NewGuid();
-        
+
         var jobStatus = new BatchJobStatus
         {
             JobId = jobId,
@@ -266,9 +266,9 @@ public class InMemoryReprocessingService : IReprocessingService
                 jobStatus.CurrentOperation = "Processing matches";
 
                 var result = await BatchReplayMatchesAsync(
-                    jobRequest.FromDate, 
-                    jobRequest.ToDate, 
-                    jobRequest.NewAlgorithmVersion, 
+                    jobRequest.FromDate,
+                    jobRequest.ToDate,
+                    jobRequest.NewAlgorithmVersion,
                     jobRequest.Configuration);
 
                 jobStatus.ProcessedCount = result.SuccessfullyProcessed;

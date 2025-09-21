@@ -97,7 +97,7 @@ public class ReprocessingController : ControllerBase
         try
         {
             var status = await _reprocessingService.GetBatchJobStatusAsync(jobId);
-            
+
             if (status.Status == JobStatus.Failed && status.ErrorMessage == "Job not found")
             {
                 return NotFound();

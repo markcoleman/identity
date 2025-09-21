@@ -57,7 +57,7 @@ public class BatchProcessingController : ControllerBase
             // Validate file extension matches format
             var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
             var expectedExtension = inputFormat == BatchInputFormat.Json ? ".json" : ".csv";
-            
+
             if (extension != expectedExtension)
             {
                 return BadRequest($"File extension '{extension}' does not match specified format '{format}'");
@@ -151,7 +151,7 @@ public class BatchProcessingController : ControllerBase
         try
         {
             var status = await _batchProcessingService.GetBatchJobStatusAsync(jobId);
-            
+
             if (status.Status == JobStatus.Failed && status.ErrorMessage == "Job not found")
             {
                 return NotFound();
@@ -182,7 +182,7 @@ public class BatchProcessingController : ControllerBase
             }
 
             var resultsStream = await _batchProcessingService.GetBatchResultsAsync(jobId, outputFormat);
-            
+
             var contentType = outputFormat == BatchOutputFormat.Json ? "application/json" : "text/csv";
             var fileName = $"batch-results-{jobId}.{format.ToLowerInvariant()}";
 
@@ -209,7 +209,7 @@ public class BatchProcessingController : ControllerBase
         try
         {
             var cancelled = await _batchProcessingService.CancelBatchJobAsync(jobId);
-            
+
             if (!cancelled)
             {
                 return NotFound("Job not found or cannot be cancelled");
