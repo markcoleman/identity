@@ -14,6 +14,7 @@ public class InMemoryAuditService : IAuditService
     private readonly ConcurrentDictionary<Guid, List<MergeEvent>> _mergeEvents = new();
     private readonly ConcurrentDictionary<Guid, List<SplitEvent>> _splitEvents = new();
     private readonly ConcurrentDictionary<Guid, IdentityLineage> _lineages = new();
+    private readonly ConcurrentBag<MatchRequest> _matchRequests = new();
     private readonly ILogger<InMemoryAuditService> _logger;
 
     public InMemoryAuditService(ILogger<InMemoryAuditService> logger)
@@ -38,65 +39,44 @@ public class InMemoryAuditService : IAuditService
     {
         var records = _auditRecords
             .Where(r => r.SourceIdentityId == identityId)
-            .OrderByDescending(r => r.Timestamp);
+            .OrderBy(r => r.Timestamp)
+            .AsEnumerable();
 
-        return Task.FromResult(records.AsEnumerable());
+        return Task.FromResult(records);
     }
 
     public Task<IEnumerable<AuditRecord>> GetAuditRecordsByTypeAsync(AuditOperationType operationType, DateTime? from = null, DateTime? to = null, CancellationToken cancellationToken = default)
     {
         var query = _auditRecords.Where(r => r.OperationType == operationType);
 
-        if (from is not null)
+        if (from.HasValue)
             query = query.Where(r => r.Timestamp >= from.Value);
 
-        if (to is not null)
+        if (to.HasValue)
             query = query.Where(r => r.Timestamp <= to.Value);
 
-        var records = query.OrderByDescending(r => r.Timestamp);
+        var records = query.OrderBy(r => r.Timestamp).AsEnumerable();
 
-        return Task.FromResult(records.AsEnumerable());
+        return Task.FromResult(records);
+    }
+
+    public Task<AuditRecord?> GetAuditRecordAsync(Guid auditId, CancellationToken cancellationToken = default)
+    {
+        var record = _auditRecords.FirstOrDefault(r => r.Id == auditId);
+        return Task.FromResult(record);
     }
 
     public Task<MergeEvent> RecordMergeEventAsync(MergeEvent mergeEvent, CancellationToken cancellationToken = default)
     {
-        // Record the merge event for both identities involved
+        // Record in merge events collection
         _mergeEvents.AddOrUpdate(mergeEvent.PrimaryIdentityId,
             new List<MergeEvent> { mergeEvent },
-            (key, list) => { list.Add(mergeEvent); return list; });
-
-        _mergeEvents.AddOrUpdate(mergeEvent.SecondaryIdentityId,
-            new List<MergeEvent> { mergeEvent },
-            (key, list) => { list.Add(mergeEvent); return list; });
+            (key, existing) => { existing.Add(mergeEvent); return existing; });
 
         // Update lineage
         UpdateLineageForMerge(mergeEvent);
 
-        // Create audit record
-        var auditRecord = new AuditRecord
-        {
-            OperationType = AuditOperationType.Merge,
-            SourceIdentityId = mergeEvent.PrimaryIdentityId,
-            Actor = mergeEvent.MergedBy,
-            Score = mergeEvent.ConfidenceScore,
-            Decision = ResolutionDecision.Auto,
-            Inputs = new Dictionary<string, object>
-            {
-                ["primaryIdentityId"] = mergeEvent.PrimaryIdentityId,
-                ["secondaryIdentityId"] = mergeEvent.SecondaryIdentityId,
-                ["isAutomatic"] = mergeEvent.IsAutomatic
-            },
-            Result = new Dictionary<string, object>
-            {
-                ["resultingIdentityId"] = mergeEvent.ResultingIdentityId,
-                ["reason"] = mergeEvent.Reason ?? ""
-            },
-            Metadata = mergeEvent.Context
-        };
-
-        _auditRecords.Add(auditRecord);
-
-        _logger.LogInformation("Recorded merge event: {PrimaryId} + {SecondaryId} → {ResultId}",
+        _logger.LogDebug("Recorded merge event: {PrimaryId} + {SecondaryId} = {ResultId}",
             mergeEvent.PrimaryIdentityId, mergeEvent.SecondaryIdentityId, mergeEvent.ResultingIdentityId);
 
         return Task.FromResult(mergeEvent);
@@ -104,142 +84,85 @@ public class InMemoryAuditService : IAuditService
 
     public Task<SplitEvent> RecordSplitEventAsync(SplitEvent splitEvent, CancellationToken cancellationToken = default)
     {
+        // Record in split events collection
         _splitEvents.AddOrUpdate(splitEvent.OriginalIdentityId,
             new List<SplitEvent> { splitEvent },
-            (key, list) => { list.Add(splitEvent); return list; });
-
-        // Record for each resulting identity too
-        foreach (var resultId in splitEvent.ResultingIdentityIds)
-        {
-            _splitEvents.AddOrUpdate(resultId,
-                new List<SplitEvent> { splitEvent },
-                (key, list) => { list.Add(splitEvent); return list; });
-        }
+            (key, existing) => { existing.Add(splitEvent); return existing; });
 
         // Update lineage
         UpdateLineageForSplit(splitEvent);
 
-        // Create audit record
-        var auditRecord = new AuditRecord
-        {
-            OperationType = AuditOperationType.Split,
-            SourceIdentityId = splitEvent.OriginalIdentityId,
-            Actor = splitEvent.SplitBy,
-            Inputs = new Dictionary<string, object>
-            {
-                ["originalIdentityId"] = splitEvent.OriginalIdentityId,
-                ["reason"] = splitEvent.Reason
-            },
-            Result = new Dictionary<string, object>
-            {
-                ["resultingIdentityIds"] = splitEvent.ResultingIdentityIds,
-                ["splitCount"] = splitEvent.ResultingIdentityIds.Count
-            },
-            Metadata = splitEvent.Context
-        };
-
-        _auditRecords.Add(auditRecord);
-
-        _logger.LogInformation("Recorded split event: {OriginalId} → [{ResultIds}]",
+        _logger.LogDebug("Recorded split event: {OriginalId} -> [{ResultIds}]",
             splitEvent.OriginalIdentityId, string.Join(", ", splitEvent.ResultingIdentityIds));
 
         return Task.FromResult(splitEvent);
     }
 
-    public Task<IdentityLineage> GetIdentityLineageAsync(Guid identityId, CancellationToken cancellationToken = default)
+    public Task<IdentityLineage?> GetIdentityLineageAsync(Guid personId, CancellationToken cancellationToken = default)
     {
-        if (_lineages.TryGetValue(identityId, out var lineage))
-        {
-            return Task.FromResult(lineage);
-        }
+        _lineages.TryGetValue(personId, out var lineage);
+        return Task.FromResult(lineage);
+    }
 
-        // Create new lineage if none exists
-        var newLineage = new IdentityLineage
-        {
-            IdentityId = identityId,
-            MergeEvents = _mergeEvents.TryGetValue(identityId, out var merges) ? merges : new List<MergeEvent>(),
-            SplitEvents = _splitEvents.TryGetValue(identityId, out var splits) ? splits : new List<SplitEvent>()
-        };
+    public Task<MatchRequest> RecordMatchRequestAsync(MatchRequest matchRequest, CancellationToken cancellationToken = default)
+    {
+        _matchRequests.Add(matchRequest);
 
-        _lineages.TryAdd(identityId, newLineage);
-        return Task.FromResult(newLineage);
+        _logger.LogDebug("Recorded match request {MatchId} for identity {IdentityId}",
+            matchRequest.Id, matchRequest.InputIdentity.Id);
+
+        return Task.FromResult(matchRequest);
+    }
+
+    public Task<MatchRequest?> GetMatchRequestAsync(Guid matchId, CancellationToken cancellationToken = default)
+    {
+        var matchRequest = _matchRequests.FirstOrDefault(m => m.Id == matchId);
+        return Task.FromResult(matchRequest);
+    }
+
+    public Task<IEnumerable<MatchRequest>> GetMatchRequestsAsync(DateTime from, DateTime to, CancellationToken cancellationToken = default)
+    {
+        var requests = _matchRequests
+            .Where(r => r.ProcessedAt >= from && r.ProcessedAt <= to)
+            .OrderBy(r => r.ProcessedAt)
+            .AsEnumerable();
+
+        return Task.FromResult(requests);
     }
 
     private void UpdateLineageForMerge(MergeEvent mergeEvent)
     {
-        // Update lineage for primary identity
-        _lineages.AddOrUpdate(mergeEvent.PrimaryIdentityId,
+        // Get or create lineage for the resulting identity
+        var lineage = _lineages.AddOrUpdate(mergeEvent.ResultingIdentityId,
             new IdentityLineage
             {
-                IdentityId = mergeEvent.PrimaryIdentityId,
-                MergeEvents = new List<MergeEvent> { mergeEvent }
+                PersonId = mergeEvent.ResultingIdentityId,
+                MergeHistory = new List<MergeEvent> { mergeEvent }
             },
-            (key, lineage) =>
+            (key, existing) =>
             {
-                lineage.MergeEvents.Add(mergeEvent);
-                lineage.UpdatedAt = DateTime.UtcNow;
-                return lineage;
-            });
-
-        // Update lineage for secondary identity
-        _lineages.AddOrUpdate(mergeEvent.SecondaryIdentityId,
-            new IdentityLineage
-            {
-                IdentityId = mergeEvent.SecondaryIdentityId,
-                MergeEvents = new List<MergeEvent> { mergeEvent }
-            },
-            (key, lineage) =>
-            {
-                lineage.MergeEvents.Add(mergeEvent);
-                lineage.UpdatedAt = DateTime.UtcNow;
-                return lineage;
-            });
-
-        // Create lineage for resulting identity
-        _lineages.AddOrUpdate(mergeEvent.ResultingIdentityId,
-            new IdentityLineage
-            {
-                IdentityId = mergeEvent.ResultingIdentityId,
-                MergeEvents = new List<MergeEvent> { mergeEvent }
-            },
-            (key, lineage) =>
-            {
-                lineage.MergeEvents.Add(mergeEvent);
-                lineage.UpdatedAt = DateTime.UtcNow;
-                return lineage;
+                existing.MergeHistory.Add(mergeEvent);
+                existing.UpdatedAt = DateTime.UtcNow;
+                return existing;
             });
     }
 
     private void UpdateLineageForSplit(SplitEvent splitEvent)
     {
-        // Update lineage for original identity
-        _lineages.AddOrUpdate(splitEvent.OriginalIdentityId,
-            new IdentityLineage
-            {
-                IdentityId = splitEvent.OriginalIdentityId,
-                SplitEvents = new List<SplitEvent> { splitEvent }
-            },
-            (key, lineage) =>
-            {
-                lineage.SplitEvents.Add(splitEvent);
-                lineage.UpdatedAt = DateTime.UtcNow;
-                return lineage;
-            });
-
         // Update lineage for each resulting identity
-        foreach (var resultId in splitEvent.ResultingIdentityIds)
+        foreach (var resultingId in splitEvent.ResultingIdentityIds)
         {
-            _lineages.AddOrUpdate(resultId,
+            _lineages.AddOrUpdate(resultingId,
                 new IdentityLineage
                 {
-                    IdentityId = resultId,
-                    SplitEvents = new List<SplitEvent> { splitEvent }
+                    PersonId = resultingId,
+                    SplitHistory = new List<SplitEvent> { splitEvent }
                 },
-                (key, lineage) =>
+                (key, existing) =>
                 {
-                    lineage.SplitEvents.Add(splitEvent);
-                    lineage.UpdatedAt = DateTime.UtcNow;
-                    return lineage;
+                    existing.SplitHistory.Add(splitEvent);
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    return existing;
                 });
         }
     }

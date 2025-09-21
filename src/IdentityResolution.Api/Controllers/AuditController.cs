@@ -15,9 +15,7 @@ public class AuditController : ControllerBase
     private readonly IAuditService _auditService;
     private readonly ILogger<AuditController> _logger;
 
-    public AuditController(
-        IAuditService auditService,
-        ILogger<AuditController> logger)
+    public AuditController(IAuditService auditService, ILogger<AuditController> logger)
     {
         _auditService = auditService;
         _logger = logger;
@@ -29,7 +27,7 @@ public class AuditController : ControllerBase
     /// <param name="identityId">The identity ID</param>
     [HttpGet("identity/{identityId}")]
     [Authorize]
-    public async Task<ActionResult<IEnumerable<AuditRecord>>> GetAuditRecords(Guid identityId)
+    public async Task<ActionResult<IEnumerable<AuditRecord>>> GetAuditRecordsForIdentity(Guid identityId)
     {
         try
         {
@@ -44,47 +42,26 @@ public class AuditController : ControllerBase
     }
 
     /// <summary>
-    /// Get audit records by operation type
+    /// Get a specific audit record by ID
     /// </summary>
-    /// <param name="operationType">The operation type to filter by</param>
-    /// <param name="from">Start date (optional)</param>
-    /// <param name="to">End date (optional)</param>
-    [HttpGet("operations/{operationType}")]
+    /// <param name="auditId">The audit record ID</param>
+    [HttpGet("{auditId}")]
     [Authorize]
-    public async Task<ActionResult<IEnumerable<AuditRecord>>> GetAuditRecordsByType(
-        AuditOperationType operationType,
-        [FromQuery] DateTime? from = null,
-        [FromQuery] DateTime? to = null)
+    public async Task<ActionResult<AuditRecord>> GetAuditRecord(Guid auditId)
     {
         try
         {
-            var records = await _auditService.GetAuditRecordsByTypeAsync(operationType, from, to);
-            return Ok(records);
+            var record = await _auditService.GetAuditRecordAsync(auditId);
+            if (record == null)
+            {
+                return NotFound();
+            }
+            return Ok(record);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving audit records for operation type {OperationType}", operationType);
-            return StatusCode(500, "Error occurred while retrieving audit records");
-        }
-    }
-
-    /// <summary>
-    /// Get identity lineage (merge/split history)
-    /// </summary>
-    /// <param name="identityId">The identity ID</param>
-    [HttpGet("lineage/{identityId}")]
-    [Authorize]
-    public async Task<ActionResult<IdentityLineage>> GetIdentityLineage(Guid identityId)
-    {
-        try
-        {
-            var lineage = await _auditService.GetIdentityLineageAsync(identityId);
-            return Ok(lineage);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving lineage for identity {IdentityId}", identityId);
-            return StatusCode(500, "Error occurred while retrieving identity lineage");
+            _logger.LogError(ex, "Error retrieving audit record {AuditId}", auditId);
+            return StatusCode(500, "Error occurred while retrieving audit record");
         }
     }
 
@@ -131,6 +108,77 @@ public class AuditController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving resolution events");
             return StatusCode(500, "Error occurred while retrieving resolution events");
+        }
+    }
+
+    /// <summary>
+    /// Get all matching audit records within a date range
+    /// </summary>
+    /// <param name="from">Start date (optional)</param>
+    /// <param name="to">End date (optional)</param>
+    [HttpGet("matches")]
+    [Authorize]
+    public async Task<ActionResult<IEnumerable<AuditRecord>>> GetMatchEvents(
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null)
+    {
+        try
+        {
+            var records = await _auditService.GetAuditRecordsByTypeAsync(AuditOperationType.Match, from, to);
+            return Ok(records);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving match events");
+            return StatusCode(500, "Error occurred while retrieving match events");
+        }
+    }
+
+    /// <summary>
+    /// Get identity lineage (merge and split history)
+    /// </summary>
+    /// <param name="personId">The person ID</param>
+    [HttpGet("lineage/{personId}")]
+    [Authorize]
+    public async Task<ActionResult<IdentityLineage>> GetIdentityLineage(Guid personId)
+    {
+        try
+        {
+            var lineage = await _auditService.GetIdentityLineageAsync(personId);
+            if (lineage == null)
+            {
+                return NotFound();
+            }
+            return Ok(lineage);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving identity lineage for {PersonId}", personId);
+            return StatusCode(500, "Error occurred while retrieving identity lineage");
+        }
+    }
+
+    /// <summary>
+    /// Get a specific match request by ID with all computed features
+    /// </summary>
+    /// <param name="matchId">The match request ID</param>
+    [HttpGet("match/{matchId}")]
+    [Authorize]
+    public async Task<ActionResult<MatchRequest>> GetMatchRequest(Guid matchId)
+    {
+        try
+        {
+            var matchRequest = await _auditService.GetMatchRequestAsync(matchId);
+            if (matchRequest == null)
+            {
+                return NotFound();
+            }
+            return Ok(matchRequest);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving match request {MatchId}", matchId);
+            return StatusCode(500, "Error occurred while retrieving match request");
         }
     }
 }

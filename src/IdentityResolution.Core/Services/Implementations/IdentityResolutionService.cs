@@ -14,6 +14,7 @@ public class IdentityResolutionService : IIdentityResolutionService
     private readonly IIdentityStorageService _storageService;
     private readonly IDataNormalizationService _normalizationService;
     private readonly IAuditService? _auditService;
+    private readonly ITokenizationService? _tokenizationService;
     private readonly IReviewQueueService? _reviewQueueService;
     private readonly ILogger<IdentityResolutionService> _logger;
 
@@ -23,11 +24,15 @@ public class IdentityResolutionService : IIdentityResolutionService
         IDataNormalizationService normalizationService,
         ILogger<IdentityResolutionService> logger,
         IAuditService? auditService = null,
+        ITokenizationService? tokenizationService = null,
         IReviewQueueService? reviewQueueService = null)
     {
         _matchingService = matchingService;
         _storageService = storageService;
         _normalizationService = normalizationService;
+        _auditService = auditService;
+        _tokenizationService = tokenizationService;
+        _reviewQueueService = reviewQueueService;
         _logger = logger;
         _auditService = auditService;
         _reviewQueueService = reviewQueueService;
@@ -61,8 +66,8 @@ public class IdentityResolutionService : IIdentityResolutionService
             var decision = MakeResolutionDecision(matchResult, configuration, result);
             result.Decision = decision;
 
-            // Generate EPID based on decision and resolved identity
-            result.EPID = await GenerateEPIDAsync(decision, normalizedIdentity, matchResult, cancellationToken);
+            // Generate EPID for tracking
+            result.EPID = $"EPID-{Guid.NewGuid():N}";
 
             // Execute the decision
             await ExecuteResolutionDecision(decision, normalizedIdentity, matchResult, result, cancellationToken);
@@ -75,6 +80,9 @@ public class IdentityResolutionService : IIdentityResolutionService
 
             stopwatch.Stop();
             result.ProcessingTime = stopwatch.Elapsed;
+
+            // Record comprehensive audit trail for the resolution operation
+            await RecordResolutionAuditAsync(normalizedIdentity, matchResult, configuration, result, cancellationToken);
 
             _logger.LogInformation("Identity resolution completed for {IdentityId} with decision {Decision} in {ElapsedMs}ms",
                 identity.Id, decision, stopwatch.ElapsedMilliseconds);
@@ -182,6 +190,65 @@ public class IdentityResolutionService : IIdentityResolutionService
     }
 
     /// <summary>
+    /// Execute the resolution decision
+    /// </summary>
+    private async Task ExecuteResolutionDecision(
+        ResolutionDecision decision,
+        Identity normalizedIdentity,
+        MatchResult matchResult,
+        ResolutionResult result,
+        CancellationToken cancellationToken)
+    {
+        // Generate EPID for tracking
+        result.EPID = $"EPID-{Guid.NewGuid():N}";
+
+        switch (decision)
+        {
+            case ResolutionDecision.Auto:
+                // Merge with the best match
+                var bestMatch = matchResult.Matches.FirstOrDefault();
+                if (bestMatch != null)
+                {
+                    result.ResolvedIdentity = MergeIdentities(bestMatch.CandidateIdentity, normalizedIdentity);
+                    result.MergedIdentities.Add(bestMatch.CandidateIdentity);
+                    result.MergedIdentities.Add(normalizedIdentity);
+                    result.WasAutoMerged = true;
+
+                    // Update storage
+                    result.ResolvedIdentity = await _storageService.UpdateIdentityAsync(result.ResolvedIdentity, cancellationToken);
+                }
+                break;
+
+            case ResolutionDecision.Review:
+                // Add to review queue if available
+                if (_reviewQueueService != null)
+                {
+                    await _reviewQueueService.AddToReviewQueueAsync(normalizedIdentity, matchResult, "Matching confidence requires manual review", cancellationToken);
+                    result.Warnings.Add("Identity requires manual review before final resolution");
+                }
+                else
+                {
+                    // Store identity but flag for review (fallback behavior)
+                    result.ResolvedIdentity = await _storageService.StoreIdentityAsync(normalizedIdentity, cancellationToken);
+                    result.Warnings.Add("Identity requires manual review before final resolution");
+                }
+                break;
+
+            case ResolutionDecision.New:
+                // Create new identity
+                result.ResolvedIdentity = await _storageService.StoreIdentityAsync(normalizedIdentity, cancellationToken);
+                break;
+        }
+
+        // Store EPID in identity attributes
+        if (result.ResolvedIdentity != null)
+        {
+            result.ResolvedIdentity.Attributes["EPID"] = result.EPID;
+            result.ResolvedIdentity = await _storageService.UpdateIdentityAsync(result.ResolvedIdentity, cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// Populate audit data for governance and compliance
     /// </summary>
     private void PopulateAuditData(ResolutionResult result, MatchResult matchResult, MatchingConfiguration configuration)
@@ -261,48 +328,6 @@ public class IdentityResolutionService : IIdentityResolutionService
     }
 
     /// <summary>
-    /// Generate an Enterprise Person ID (EPID) for the resolved identity
-    /// </summary>
-    private Task<string> GenerateEPIDAsync(ResolutionDecision decision, Identity identity, MatchResult matchResult, CancellationToken cancellationToken)
-    {
-        var epid = decision switch
-        {
-            ResolutionDecision.Auto when matchResult.Matches.Any() =>
-                GenerateEPIDFromExistingIdentity(matchResult.Matches.First().CandidateIdentity),
-            ResolutionDecision.New =>
-                GenerateNewEPID(identity),
-            _ =>
-                GenerateNewEPID(identity)
-        };
-
-        return Task.FromResult(epid);
-    }
-
-    /// <summary>
-    /// Generate EPID from existing identity (during merge)
-    /// </summary>
-    private string GenerateEPIDFromExistingIdentity(Identity existingIdentity)
-    {
-        // Use existing identity's EPID if available, otherwise generate from ID
-        if (existingIdentity.Attributes.TryGetValue("EPID", out var existingEpid) && !string.IsNullOrEmpty(existingEpid))
-        {
-            return existingEpid;
-        }
-
-        // Generate EPID from identity ID with prefix
-        return $"EPID-{existingIdentity.Id:N}";
-    }
-
-    /// <summary>
-    /// Generate new EPID for a new identity
-    /// </summary>
-    private string GenerateNewEPID(Identity identity)
-    {
-        // Generate EPID from identity ID with prefix
-        return $"EPID-{identity.Id:N}";
-    }
-
-    /// <summary>
     /// Record audit trail for the resolution operation
     /// </summary>
     private async Task RecordResolutionAuditAsync(Identity identity, MatchResult matchResult, MatchingConfiguration configuration, ResolutionResult result, CancellationToken cancellationToken)
@@ -334,132 +359,65 @@ public class IdentityResolutionService : IIdentityResolutionService
                 ["matchCount"] = matchResult.Matches.Count,
                 ["bestScore"] = matchResult.Matches.FirstOrDefault()?.OverallScore ?? 0.0,
                 ["algorithm"] = matchResult.Algorithm,
-                ["matchingPath"] = GetMatchingPath(matchResult)
+                ["processingTimeMs"] = result.ProcessingTime.TotalMilliseconds
             },
             Configuration = new Dictionary<string, object>
             {
+                ["minimumMatchThreshold"] = configuration.MinimumMatchThreshold,
                 ["autoMergeThreshold"] = configuration.AutoMergeThreshold,
                 ["reviewThreshold"] = configuration.ReviewThreshold,
-                ["minimumThreshold"] = configuration.MinimumMatchThreshold
+                ["maxResults"] = configuration.MaxResults,
+                ["enableFuzzyMatching"] = configuration.EnableFuzzyMatching
             },
-            Result = new Dictionary<string, object>
+            Results = new Dictionary<string, object>
             {
                 ["decision"] = result.Decision.ToString(),
-                ["epid"] = result.EPID,
-                ["resolvedIdentityId"] = result.ResolvedIdentity?.Id.ToString() ?? "",
+                ["resolvedIdentityId"] = result.ResolvedIdentity?.Id ?? Guid.Empty,
                 ["wasAutoMerged"] = result.WasAutoMerged,
-                ["explanation"] = result.Explanation ?? ""
+                ["mergedIdentityCount"] = result.MergedIdentities.Count,
+                ["warningsCount"] = result.Warnings.Count
             }
         };
 
         await _auditService.RecordAuditAsync(auditRecord, cancellationToken);
 
-        // Record merge event if auto-merged
-        if (result.WasAutoMerged && matchResult.Matches.Any())
+        // Also record the match request for future reprocessing
+        if (_tokenizationService != null)
         {
-            var bestMatch = matchResult.Matches.First();
-            var mergeEvent = new MergeEvent
+            var matchRequest = new MatchRequest
             {
-                PrimaryIdentityId = bestMatch.CandidateIdentity.Id,
-                SecondaryIdentityId = identity.Id,
-                ResultingIdentityId = result.ResolvedIdentity?.Id ?? Guid.Empty,
-                MergedBy = "System",
-                ConfidenceScore = bestMatch.OverallScore,
-                IsAutomatic = true,
-                Reason = "Automatic merge based on high confidence score",
-                Context = new Dictionary<string, object>
-                {
-                    ["resolutionId"] = result.ResolutionId,
-                    ["matchReasons"] = bestMatch.MatchReasons
-                }
+                InputIdentity = identity,
+                MatchResult = matchResult,
+                Decision = result.Decision,
+                Configuration = configuration,
+                ProcessingTime = result.ProcessingTime,
+                Actor = "System",
+                SourceSystem = identity.Source,
+                CorrelationId = result.ResolutionId.ToString(),
+                AlgorithmVersion = "1.0" // This should come from configuration or system info
             };
 
-            await _auditService.RecordMergeEventAsync(mergeEvent, cancellationToken);
-        }
-    }
-
-    /// <summary>
-    /// Determine which matching path was taken (deterministic or probabilistic)
-    /// </summary>
-    private string GetMatchingPath(MatchResult matchResult)
-    {
-        if (!matchResult.Matches.Any())
-            return "NoMatches";
-
-        var bestMatch = matchResult.Matches.First();
-
-        if (bestMatch.MatchReasons.Any(r => r.Contains("Deterministic")))
-            return "Deterministic";
-        else if (bestMatch.MatchReasons.Any(r => r.Contains("Probabilistic")))
-            return "Probabilistic";
-        else
-            return "Hybrid";
-    }
-
-    /// <summary>
-    /// Enhanced decision logic that handles review queue integration
-    /// </summary>
-    private async Task ExecuteResolutionDecision(
-        ResolutionDecision decision,
-        Identity normalizedIdentity,
-        MatchResult matchResult,
-        ResolutionResult result,
-        CancellationToken cancellationToken)
-    {
-        switch (decision)
-        {
-            case ResolutionDecision.Auto:
-                // Merge with best match
-                var bestMatch = matchResult.Matches.First();
-                result.ResolvedIdentity = MergeIdentities(bestMatch.CandidateIdentity, normalizedIdentity);
-                result.ResolvedIdentity = await _storageService.UpdateIdentityAsync(result.ResolvedIdentity, cancellationToken);
-                result.WasAutoMerged = true;
-                result.MergedIdentities.Add(bestMatch.CandidateIdentity);
-                result.MergedIdentities.Add(normalizedIdentity);
-                break;
-
-            case ResolutionDecision.Review:
-                // Add to review queue if service is available, otherwise store for manual review
-                if (_reviewQueueService != null)
+            // Tokenize sensitive fields
+            foreach (var identifier in identity.Identifiers)
+            {
+                if (identifier.Type == IdentifierTypes.SocialSecurityNumber)
                 {
-                    var reviewItem = new ReviewQueueItem
-                    {
-                        SourceIdentity = normalizedIdentity,
-                        CandidateIdentities = matchResult.Matches.Select(m => m.CandidateIdentity).ToList(),
-                        Matches = matchResult.Matches.ToList(),
-                        SystemDecision = ResolutionDecision.Review,
-                        SourceSystem = normalizedIdentity.Source,
-                        Context = new Dictionary<string, object>
-                        {
-                            ["resolutionId"] = result.ResolutionId,
-                            ["explanation"] = result.Explanation ?? ""
-                        }
-                    };
-
-                    await _reviewQueueService.AddToReviewQueueAsync(reviewItem, cancellationToken);
-
-                    result.ResolvedIdentity = await _storageService.StoreIdentityAsync(normalizedIdentity, cancellationToken);
-                    result.Warnings.Add($"Identity queued for manual review (Item ID: {reviewItem.Id})");
-                    result.AuditData["reviewItemId"] = reviewItem.Id;
+                    matchRequest.EncryptedFields["SSN_TOKEN"] = _tokenizationService.TokenizeSSN(identifier.Value);
                 }
-                else
-                {
-                    result.ResolvedIdentity = await _storageService.StoreIdentityAsync(normalizedIdentity, cancellationToken);
-                    result.Warnings.Add("Identity requires manual review before final resolution");
-                }
-                break;
+            }
 
-            case ResolutionDecision.New:
-                // Create new identity
-                result.ResolvedIdentity = await _storageService.StoreIdentityAsync(normalizedIdentity, cancellationToken);
-                break;
-        }
+            // Add computed feature vectors for auditability
+            matchRequest.ComputedFeatures = new Dictionary<string, object>
+            {
+                ["normalizedFirstName"] = identity.PersonalInfo.FirstName ?? "",
+                ["normalizedLastName"] = identity.PersonalInfo.LastName ?? "",
+                ["normalizedEmail"] = identity.ContactInfo.Email ?? "",
+                ["normalizedPhone"] = identity.ContactInfo.Phone ?? "",
+                ["fieldWeights"] = configuration.FieldWeights,
+                ["exactMatchFields"] = configuration.ExactMatchFields
+            };
 
-        // Store EPID in identity attributes
-        if (result.ResolvedIdentity != null)
-        {
-            result.ResolvedIdentity.Attributes["EPID"] = result.EPID;
-            result.ResolvedIdentity = await _storageService.UpdateIdentityAsync(result.ResolvedIdentity, cancellationToken);
+            await _auditService.RecordMatchRequestAsync(matchRequest, cancellationToken);
         }
     }
 }
