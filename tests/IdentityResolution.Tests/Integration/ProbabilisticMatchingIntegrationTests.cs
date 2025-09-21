@@ -7,10 +7,68 @@ namespace IdentityResolution.Tests.Integration;
 
 /// <summary>
 /// Integration tests for probabilistic matching logic with threshold behavior testing
-/// using testcontainers with PostgreSQL, Redis, and OpenSearch
+/// using testcontainers with PostgreSQL, Redis, and OpenSearch.
+/// Note: These tests require Docker and significant resources (~2GB RAM, 15+ seconds startup time).
+/// They are excluded from CI by default but can be run locally or via '[run-integration]' commit message.
 /// </summary>
+[Trait("Category", "Integration")]
 public class ProbabilisticMatchingIntegrationTests : IntegrationTestBase
 {
+    /// <summary>
+    /// Override to avoid conflicts with test data
+    /// </summary>
+    protected override async Task SeedTestDataAsync()
+    {
+        // Create non-conflicting sample data for probabilistic tests
+        var sampleIdentities = new List<Identity>
+        {
+            new Identity
+            {
+                Id = Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                PersonalInfo = new PersonalInfo
+                {
+                    FirstName = "David",
+                    LastName = "Brown",
+                    DateOfBirth = DateTime.SpecifyKind(new DateTime(1982, 4, 10), DateTimeKind.Utc)
+                },
+                ContactInfo = new ContactInfo
+                {
+                    Email = "david.brown@example.com",
+                    Phone = "(555) 111-2222"
+                },
+                Identifiers = new List<Identifier>(),
+                Source = "TestSystem",
+                Confidence = 0.95
+            },
+            new Identity
+            {
+                Id = Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                PersonalInfo = new PersonalInfo
+                {
+                    FirstName = "Emma",
+                    LastName = "Davis",
+                    DateOfBirth = DateTime.SpecifyKind(new DateTime(1993, 11, 25), DateTimeKind.Utc)
+                },
+                ContactInfo = new ContactInfo
+                {
+                    Email = "emma.davis@example.com",
+                    Phone = "(555) 333-4444"
+                },
+                Identifiers = new List<Identifier>(),
+                Source = "TestSystem",
+                Confidence = 0.88
+            }
+        };
+
+        foreach (var identity in sampleIdentities)
+        {
+            await StorageService.StoreIdentityAsync(identity);
+        }
+    }
     [Fact]
     public async Task FindMatchesAsync_WithHighProbabilisticScore_ShouldAutoMerge()
     {

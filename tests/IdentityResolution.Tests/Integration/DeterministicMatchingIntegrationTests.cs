@@ -7,10 +7,76 @@ namespace IdentityResolution.Tests.Integration;
 
 /// <summary>
 /// Integration tests for deterministic matching logic (SSN + DOB exact matches)
-/// using testcontainers with PostgreSQL, Redis, and OpenSearch
+/// using testcontainers with PostgreSQL, Redis, and OpenSearch.
+/// Note: These tests require Docker and significant resources (~2GB RAM, 15+ seconds startup time).
+/// They are excluded from CI by default but can be run locally or via '[run-integration]' commit message.
 /// </summary>
+[Trait("Category", "Integration")]
 public class DeterministicMatchingIntegrationTests : IntegrationTestBase
 {
+    /// <summary>
+    /// Override to avoid conflicts with test data
+    /// </summary>
+    protected override async Task SeedTestDataAsync()
+    {
+        // Create non-conflicting sample data for deterministic tests
+        var sampleIdentities = new List<Identity>
+        {
+            // Different test data to avoid conflicts with test cases
+            new Identity
+            {
+                Id = Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                PersonalInfo = new PersonalInfo
+                {
+                    FirstName = "Alice",
+                    LastName = "Johnson",
+                    DateOfBirth = DateTime.SpecifyKind(new DateTime(1990, 7, 22), DateTimeKind.Utc)
+                },
+                ContactInfo = new ContactInfo
+                {
+                    Email = "alice.johnson@example.com",
+                    Phone = "(555) 987-6543"
+                },
+                Identifiers = new List<Identifier>
+                {
+                    new Identifier
+                    {
+                        Type = IdentifierTypes.SocialSecurityNumber,
+                        Value = "987-65-4321"
+                    }
+                },
+                Source = "TestSystem",
+                Confidence = 1.0
+            },
+            new Identity
+            {
+                Id = Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                PersonalInfo = new PersonalInfo
+                {
+                    FirstName = "Bob",
+                    LastName = "Wilson",
+                    DateOfBirth = DateTime.SpecifyKind(new DateTime(1975, 12, 8), DateTimeKind.Utc)
+                },
+                ContactInfo = new ContactInfo
+                {
+                    Email = "bob.wilson@example.com",
+                    Phone = "(555) 456-7890"
+                },
+                Identifiers = new List<Identifier>(),
+                Source = "TestSystem",
+                Confidence = 0.85
+            }
+        };
+
+        foreach (var identity in sampleIdentities)
+        {
+            await StorageService.StoreIdentityAsync(identity);
+        }
+    }
     [Fact]
     public async Task FindMatchesAsync_WithExactSSNAndDOBMatch_ShouldReturnPerfectScore()
     {

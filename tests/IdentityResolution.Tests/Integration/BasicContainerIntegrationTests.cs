@@ -6,8 +6,11 @@ using Xunit;
 namespace IdentityResolution.Tests.Integration;
 
 /// <summary>
-/// Basic integration tests to verify testcontainers setup and database connectivity
+/// Basic integration tests to verify testcontainers setup and database connectivity.
+/// Note: These tests require Docker and significant resources (~2GB RAM, 15+ seconds startup time).
+/// They are excluded from CI by default but can be run locally or via '[run-integration]' commit message.
 /// </summary>
+[Trait("Category", "Integration")]
 [Trait("Category", "Integration")]
 public class BasicContainerIntegrationTests : IntegrationTestBase
 {
