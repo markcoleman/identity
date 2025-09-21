@@ -35,6 +35,11 @@ builder.Services.AddSingleton<IAuditService, InMemoryAuditService>();
 builder.Services.AddSingleton<IGoldenProfileService, InMemoryGoldenProfileService>();
 builder.Services.AddSingleton<IReviewQueueService, InMemoryReviewQueueService>();
 
+// Add data governance and reprocessing services
+builder.Services.Configure<DataGovernanceConfiguration>(builder.Configuration.GetSection("DataGovernance"));
+builder.Services.AddSingleton<IDataGovernanceService, InMemoryDataGovernanceService>();
+builder.Services.AddSingleton<IReprocessingService, InMemoryReprocessingService>();
+
 // Add CORS for development
 builder.Services.AddCors(options =>
 {
