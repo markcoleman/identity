@@ -229,7 +229,7 @@ public class BatchProcessingController : ControllerBase
     /// Get batch processing statistics and metrics
     /// </summary>
     [HttpGet("stats")]
-    public async Task<ActionResult<BatchProcessingStats>> GetBatchProcessingStats()
+    public Task<ActionResult<BatchProcessingStats>> GetBatchProcessingStats()
     {
         try
         {
@@ -243,12 +243,12 @@ public class BatchProcessingController : ControllerBase
                 LastUpdated = DateTime.UtcNow
             };
 
-            return Ok(stats);
+            return Task.FromResult<ActionResult<BatchProcessingStats>>(Ok(stats));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving batch processing statistics");
-            return StatusCode(500, "Error occurred while retrieving statistics");
+            return Task.FromResult<ActionResult<BatchProcessingStats>>(StatusCode(500, "Error occurred while retrieving statistics"));
         }
     }
 }

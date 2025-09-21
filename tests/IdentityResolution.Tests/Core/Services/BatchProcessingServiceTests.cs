@@ -114,9 +114,9 @@ Jane,Smith,1985-05-15,jane.smith@example.com";
         result.DecisionCounts[ResolutionDecision.Auto].Should().Be(2);
 
         // Verify the parsed data
-        result.Results[0].InputIdentity.PersonalInfo.FirstName.Should().Be("John");
-        result.Results[0].InputIdentity.PersonalInfo.LastName.Should().Be("Doe");
-        result.Results[0].InputIdentity.ContactInfo.Email.Should().Be("john.doe@example.com");
+        result.Results[0].InputIdentity?.PersonalInfo.FirstName.Should().Be("John");
+        result.Results[0].InputIdentity?.PersonalInfo.LastName.Should().Be("Doe");
+        result.Results[0].InputIdentity?.ContactInfo.Email.Should().Be("john.doe@example.com");
     }
 
     [Fact]
@@ -353,8 +353,8 @@ Jane,Smith,1985-05-15,jane.smith@example.com";
         result.SuccessfullyProcessed.Should().Be(1);
 
         var processedRecord = result.Results.First();
-        processedRecord.InputIdentity.PersonalInfo.FirstName.Should().NotBeNullOrEmpty();
-        processedRecord.InputIdentity.PersonalInfo.LastName.Should().NotBeNullOrEmpty();
-        processedRecord.InputIdentity.ContactInfo.Email.Should().NotBeNullOrEmpty();
+        processedRecord.InputIdentity?.PersonalInfo.FirstName.Should().NotBeNullOrEmpty();
+        processedRecord.InputIdentity?.PersonalInfo.LastName.Should().NotBeNullOrEmpty();
+        processedRecord.InputIdentity?.ContactInfo.Email.Should().NotBeNullOrEmpty();
     }
 }

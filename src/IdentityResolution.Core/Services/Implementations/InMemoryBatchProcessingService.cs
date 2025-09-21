@@ -108,7 +108,9 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
 
                 // For this implementation, we'll simulate processing from a file
                 // In a real implementation, this would read from blob storage or other sources
-                using var fileStream = File.OpenRead(jobRequest.Source);
+                // Validate and sanitize the file path to prevent path traversal attacks
+                var sanitizedPath = ValidateAndSanitizeFilePath(jobRequest.Source);
+                using var fileStream = File.OpenRead(sanitizedPath);
                 var result = await ProcessBatchAsync(
                     fileStream,
                     jobRequest.InputFormat,
@@ -535,5 +537,44 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
 
             await writer.WriteLineAsync(line);
         }
+    }
+
+    /// <summary>
+    /// Validates and sanitizes file paths to prevent path traversal attacks
+    /// </summary>
+    /// <param name="filePath">The file path to validate</param>
+    /// <returns>Sanitized file path</returns>
+    /// <exception cref="ArgumentException">Thrown when path is invalid or contains traversal patterns</exception>
+    private static string ValidateAndSanitizeFilePath(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            throw new ArgumentException("File path cannot be null or empty", nameof(filePath));
+        }
+
+        // Check for path traversal patterns
+        if (filePath.Contains("..") || filePath.Contains("~"))
+        {
+            throw new ArgumentException("File path contains invalid traversal patterns", nameof(filePath));
+        }
+
+        // Get the full path and validate it's within expected boundaries
+        var fullPath = Path.GetFullPath(filePath);
+
+        // For security, only allow files in temp directory or specific allowed directories
+        var allowedDirectories = new[] { "/tmp", Path.GetTempPath(), Environment.CurrentDirectory };
+
+        if (!allowedDirectories.Any(dir => fullPath.StartsWith(Path.GetFullPath(dir), StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ArgumentException($"File path is not in an allowed directory: {fullPath}", nameof(filePath));
+        }
+
+        // Validate file exists
+        if (!File.Exists(fullPath))
+        {
+            throw new FileNotFoundException($"File not found: {fullPath}");
+        }
+
+        return fullPath;
     }
 }
