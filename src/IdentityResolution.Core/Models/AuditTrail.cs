@@ -39,6 +39,7 @@ public record AuditRecord
     public string? SourceSystem { get; init; }
 
     /// <summary>
+<<<<<<< HEAD
     /// Input data provided for the operation
     /// </summary>
     public Dictionary<string, object> Inputs { get; init; } = new();
@@ -308,6 +309,8 @@ public record AuditRecord
     public string? SourceSystem { get; init; }
 
     /// <summary>
+=======
+>>>>>>> dc7ae5efd53aea58ccb25bb48db3240dabe9c349
     /// Input data provided for the operation (encrypted/tokenized)
     /// </summary>
     public Dictionary<string, object> Inputs { get; init; } = new();
@@ -654,4 +657,8 @@ public class MatchRequest
     /// Correlation ID for tracking
     /// </summary>
     public string? CorrelationId { get; set; }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> dc7ae5efd53aea58ccb25bb48db3240dabe9c349

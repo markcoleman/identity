@@ -15,6 +15,7 @@ public class AuditController : ControllerBase
     private readonly IAuditService _auditService;
     private readonly ILogger<AuditController> _logger;
 
+<<<<<<< HEAD
     public AuditController(
         IAuditService auditService,
         ILogger<AuditController> logger)
@@ -151,6 +152,8 @@ public class AuditController : ControllerBase
     private readonly IAuditService _auditService;
     private readonly ILogger<AuditController> _logger;
 
+=======
+>>>>>>> dc7ae5efd53aea58ccb25bb48db3240dabe9c349
     public AuditController(IAuditService auditService, ILogger<AuditController> logger)
     {
         _auditService = auditService;
@@ -317,4 +320,8 @@ public class AuditController : ControllerBase
             return StatusCode(500, "Error occurred while retrieving match request");
         }
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> dc7ae5efd53aea58ccb25bb48db3240dabe9c349
