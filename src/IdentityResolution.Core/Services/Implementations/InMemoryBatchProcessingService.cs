@@ -1,0 +1,539 @@
+using System.Diagnostics;
+using System.Text.Json;
+using System.Globalization;
+using IdentityResolution.Core.Models;
+using Microsoft.Extensions.Logging;
+
+namespace IdentityResolution.Core.Services.Implementations;
+
+/// <summary>
+/// In-memory implementation of batch processing service for development/testing
+/// </summary>
+public class InMemoryBatchProcessingService : IBatchProcessingService
+{
+    private readonly IIdentityResolutionService _resolutionService;
+    private readonly IDataNormalizationService _normalizationService;
+    private readonly ILogger<InMemoryBatchProcessingService> _logger;
+    
+    // In-memory storage for batch jobs
+    private readonly Dictionary<Guid, BatchJobStatus> _batchJobs = new();
+    private readonly Dictionary<Guid, BatchProcessingResult> _batchResults = new();
+
+    public InMemoryBatchProcessingService(
+        IIdentityResolutionService resolutionService,
+        IDataNormalizationService normalizationService,
+        ILogger<InMemoryBatchProcessingService> logger)
+    {
+        _resolutionService = resolutionService;
+        _normalizationService = normalizationService;
+        _logger = logger;
+    }
+
+    public async Task<BatchProcessingResult> ProcessBatchAsync(
+        Stream stream, 
+        BatchInputFormat format, 
+        BatchProcessingConfiguration? configuration = null, 
+        CancellationToken cancellationToken = default)
+    {
+        configuration ??= new BatchProcessingConfiguration();
+        var stopwatch = Stopwatch.StartNew();
+        
+        var result = new BatchProcessingResult
+        {
+            StartedAt = DateTime.UtcNow,
+            Configuration = configuration
+        };
+
+        try
+        {
+            _logger.LogInformation("Starting batch processing with format {Format}", format);
+
+            // Parse identities from stream
+            var identities = await ParseIdentitiesFromStreamAsync(stream, format, cancellationToken);
+            result.TotalRecords = identities.Count;
+
+            _logger.LogInformation("Parsed {Count} identities from input stream", identities.Count);
+
+            // Process identities in parallel batches
+            await ProcessIdentitiesInBatchesAsync(identities, result, configuration, cancellationToken);
+
+            result.CompletedAt = DateTime.UtcNow;
+            result.TotalProcessingTime = stopwatch.Elapsed;
+
+            // Calculate summary statistics
+            CalculateSummaryStatistics(result);
+
+            _logger.LogInformation("Batch processing completed. Processed {Successful}/{Total} records in {Duration}ms",
+                result.SuccessfullyProcessed, result.TotalRecords, stopwatch.ElapsedMilliseconds);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during batch processing");
+            result.Errors.Add(new BatchProcessingError
+            {
+                ErrorCode = "BATCH_PROCESSING_ERROR",
+                ErrorMessage = ex.Message,
+                ExceptionDetails = ex.ToString()
+            });
+            
+            result.CompletedAt = DateTime.UtcNow;
+            result.TotalProcessingTime = stopwatch.Elapsed;
+            return result;
+        }
+    }
+
+    public Task<Guid> ScheduleBatchProcessingAsync(BatchProcessingJobRequest jobRequest)
+    {
+        var jobId = Guid.NewGuid();
+        
+        var jobStatus = new BatchJobStatus
+        {
+            JobId = jobId,
+            Status = JobStatus.Queued,
+            StartedAt = DateTime.UtcNow,
+            CurrentOperation = "Initializing batch processing job"
+        };
+
+        _batchJobs[jobId] = jobStatus;
+
+        // In a real implementation, this would queue the job for background processing
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                jobStatus.Status = JobStatus.Running;
+                jobStatus.CurrentOperation = "Processing identities";
+
+                // For this implementation, we'll simulate processing from a file
+                // In a real implementation, this would read from blob storage or other sources
+                using var fileStream = File.OpenRead(jobRequest.Source);
+                var result = await ProcessBatchAsync(
+                    fileStream, 
+                    jobRequest.InputFormat, 
+                    jobRequest.Configuration);
+
+                // Store the results
+                _batchResults[jobId] = result;
+
+                jobStatus.ProcessedCount = result.SuccessfullyProcessed;
+                jobStatus.TotalCount = result.TotalRecords;
+                jobStatus.Status = JobStatus.Completed;
+                jobStatus.CurrentOperation = "Completed";
+                
+                _logger.LogInformation("Batch processing job {JobId} completed successfully", jobId);
+            }
+            catch (Exception ex)
+            {
+                jobStatus.Status = JobStatus.Failed;
+                jobStatus.ErrorMessage = ex.Message;
+                _logger.LogError(ex, "Batch processing job {JobId} failed", jobId);
+            }
+        });
+
+        _logger.LogInformation("Scheduled batch processing job {JobId} for source {Source}",
+            jobId, jobRequest.Source);
+
+        return Task.FromResult(jobId);
+    }
+
+    public Task<BatchJobStatus> GetBatchJobStatusAsync(Guid jobId)
+    {
+        _batchJobs.TryGetValue(jobId, out var status);
+        return Task.FromResult(status ?? new BatchJobStatus 
+        { 
+            JobId = jobId, 
+            Status = JobStatus.Failed, 
+            ErrorMessage = "Job not found" 
+        });
+    }
+
+    public async Task<Stream> GetBatchResultsAsync(Guid jobId, BatchOutputFormat format = BatchOutputFormat.Json)
+    {
+        if (!_batchResults.TryGetValue(jobId, out var result))
+        {
+            throw new ArgumentException($"No results found for job {jobId}", nameof(jobId));
+        }
+
+        var stream = new MemoryStream();
+        
+        if (format == BatchOutputFormat.Json)
+        {
+            await JsonSerializer.SerializeAsync(stream, result, new JsonSerializerOptions 
+            { 
+                WriteIndented = true 
+            });
+        }
+        else if (format == BatchOutputFormat.Csv)
+        {
+            await WriteCsvResultsAsync(stream, result);
+        }
+
+        stream.Position = 0;
+        return stream;
+    }
+
+    public Task<bool> CancelBatchJobAsync(Guid jobId)
+    {
+        if (_batchJobs.TryGetValue(jobId, out var status) && 
+            (status.Status == JobStatus.Queued || status.Status == JobStatus.Running))
+        {
+            status.Status = JobStatus.Cancelled;
+            status.CurrentOperation = "Cancelled";
+            _logger.LogInformation("Cancelled batch processing job {JobId}", jobId);
+            return Task.FromResult(true);
+        }
+
+        return Task.FromResult(false);
+    }
+
+    private async Task<List<Identity>> ParseIdentitiesFromStreamAsync(
+        Stream stream, 
+        BatchInputFormat format, 
+        CancellationToken cancellationToken)
+    {
+        var identities = new List<Identity>();
+
+        if (format == BatchInputFormat.Json)
+        {
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+            
+            var jsonData = await JsonSerializer.DeserializeAsync<List<Identity>>(stream, options, cancellationToken);
+            if (jsonData != null)
+            {
+                identities.AddRange(jsonData);
+            }
+        }
+        else if (format == BatchInputFormat.Csv)
+        {
+            identities.AddRange(await ParseCsvAsync(stream, cancellationToken));
+        }
+
+        return identities;
+    }
+
+    private async Task<List<Identity>> ParseCsvAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        var identities = new List<Identity>();
+        using var reader = new StreamReader(stream);
+        
+        string? headerLine = await reader.ReadLineAsync();
+        if (headerLine == null) return identities;
+
+        var headers = headerLine.Split(',').Select(h => h.Trim().ToLowerInvariant()).ToArray();
+        
+        string? line;
+        int lineNumber = 2; // Start from 2 since header is line 1
+        
+        while ((line = await reader.ReadLineAsync()) != null)
+        {
+            if (cancellationToken.IsCancellationRequested) break;
+            
+            try
+            {
+                var identity = ParseCsvLine(line, headers, lineNumber);
+                if (identity != null)
+                {
+                    identities.Add(identity);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse CSV line {LineNumber}: {Line}", lineNumber, line);
+            }
+            
+            lineNumber++;
+        }
+
+        return identities;
+    }
+
+    private Identity? ParseCsvLine(string line, string[] headers, int lineNumber)
+    {
+        var values = line.Split(',').Select(v => v.Trim('"', ' ')).ToArray();
+        
+        if (values.Length != headers.Length)
+        {
+            _logger.LogWarning("CSV line {LineNumber} has {ValueCount} values but expected {HeaderCount}",
+                lineNumber, values.Length, headers.Length);
+            return null;
+        }
+
+        var identity = new Identity();
+        
+        for (int i = 0; i < headers.Length; i++)
+        {
+            var header = headers[i];
+            var value = values[i];
+            
+            if (string.IsNullOrWhiteSpace(value)) continue;
+
+            switch (header)
+            {
+                case "firstname":
+                case "first_name":
+                    identity.PersonalInfo.FirstName = value;
+                    break;
+                case "lastname":
+                case "last_name":
+                    identity.PersonalInfo.LastName = value;
+                    break;
+                case "middlename":
+                case "middle_name":
+                    identity.PersonalInfo.MiddleName = value;
+                    break;
+                case "dateofbirth":
+                case "date_of_birth":
+                case "dob":
+                    if (DateTime.TryParse(value, out var dob))
+                    {
+                        identity.PersonalInfo.DateOfBirth = dob;
+                    }
+                    break;
+                case "email":
+                    identity.ContactInfo.Email = value;
+                    break;
+                case "phone":
+                    identity.ContactInfo.Phone = value;
+                    break;
+                case "ssn":
+                    identity.Identifiers.Add(new Identifier 
+                    { 
+                        Type = "SSN", 
+                        Value = value 
+                    });
+                    break;
+                case "address":
+                    identity.PersonalInfo.Address = new Address { Street1 = value };
+                    break;
+                case "source":
+                    identity.Source = value;
+                    break;
+                default:
+                    // Store unknown fields as attributes
+                    identity.Attributes[header] = value;
+                    break;
+            }
+        }
+
+        return identity;
+    }
+
+    private async Task ProcessIdentitiesInBatchesAsync(
+        List<Identity> identities,
+        BatchProcessingResult result,
+        BatchProcessingConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        var semaphore = new SemaphoreSlim(configuration.MaxParallelism);
+        var tasks = new List<Task>();
+        var errorCount = 0;
+
+        for (int i = 0; i < identities.Count; i += configuration.BatchSize)
+        {
+            if (cancellationToken.IsCancellationRequested) break;
+            
+            var batch = identities.Skip(i).Take(configuration.BatchSize).ToList();
+            
+            var batchTask = Task.Run(async () =>
+            {
+                await semaphore.WaitAsync(cancellationToken);
+                try
+                {
+                    foreach (var identity in batch)
+                    {
+                        if (cancellationToken.IsCancellationRequested) break;
+                        
+                        var recordResult = await ProcessSingleIdentityAsync(
+                            identity, 
+                            result.Results.Count + 1, 
+                            configuration,
+                            cancellationToken);
+                        
+                        lock (result)
+                        {
+                            result.Results.Add(recordResult);
+                            
+                            if (recordResult.IsSuccess)
+                            {
+                                result.SuccessfullyProcessed++;
+                                
+                                if (result.DecisionCounts.ContainsKey(recordResult.Decision))
+                                    result.DecisionCounts[recordResult.Decision]++;
+                                else
+                                    result.DecisionCounts[recordResult.Decision] = 1;
+                            }
+                            else
+                            {
+                                result.Failed++;
+                                Interlocked.Increment(ref errorCount);
+                                
+                                if (!configuration.ContinueOnError || errorCount >= configuration.MaxErrorsBeforeStop)
+                                {
+                                    cancellationToken.ThrowIfCancellationRequested();
+                                }
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            }, cancellationToken);
+            
+            tasks.Add(batchTask);
+        }
+
+        await Task.WhenAll(tasks);
+    }
+
+    private async Task<BatchRecordResult> ProcessSingleIdentityAsync(
+        Identity identity,
+        int recordNumber,
+        BatchProcessingConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var recordResult = new BatchRecordResult
+        {
+            RecordNumber = recordNumber,
+            InputIdentity = identity
+        };
+
+        try
+        {
+            // Validate the identity
+            var validationResult = ValidateIdentity(identity);
+            if (!validationResult.IsValid)
+            {
+                recordResult.IsSuccess = false;
+                recordResult.ErrorCode = validationResult.ErrorCode;
+                recordResult.ErrorMessage = validationResult.ErrorMessage;
+                return recordResult;
+            }
+
+            // Normalize the identity
+            var normalizedIdentity = _normalizationService.NormalizeIdentity(identity);
+
+            // Resolve the identity using deterministic + probabilistic matching
+            var resolutionResult = await _resolutionService.ResolveIdentityAsync(
+                normalizedIdentity, 
+                configuration.MatchingConfiguration, 
+                cancellationToken);
+
+            // Map to batch record result
+            recordResult.ResolvedIdentity = resolutionResult.ResolvedIdentity;
+            recordResult.EPID = resolutionResult.EPID;
+            recordResult.Decision = resolutionResult.Decision;
+            recordResult.Score = resolutionResult.Matches.FirstOrDefault()?.OverallScore ?? 0.0;
+            recordResult.Matches = resolutionResult.Matches;
+            recordResult.Explanation = resolutionResult.Explanation;
+            recordResult.IsSuccess = true;
+
+            // Extract features used in matching
+            if (resolutionResult.Matches.Any())
+            {
+                var firstMatch = resolutionResult.Matches.First();
+                recordResult.Features["overall_score"] = firstMatch.OverallScore;
+                recordResult.Features["match_count"] = resolutionResult.Matches.Count;
+                recordResult.Features["algorithm"] = firstMatch.Algorithm ?? "default";
+                
+                // Add field scores if available
+                foreach (var fieldScore in firstMatch.FieldScores)
+                {
+                    recordResult.Features[$"field_score_{fieldScore.Key}"] = fieldScore.Value;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing identity record {RecordNumber}", recordNumber);
+            recordResult.IsSuccess = false;
+            recordResult.ErrorCode = "PROCESSING_ERROR";
+            recordResult.ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            recordResult.ProcessingTime = stopwatch.Elapsed;
+        }
+
+        return recordResult;
+    }
+
+    private (bool IsValid, string? ErrorCode, string? ErrorMessage) ValidateIdentity(Identity identity)
+    {
+        // Check for required fields
+        if (string.IsNullOrWhiteSpace(identity.PersonalInfo.FirstName) &&
+            string.IsNullOrWhiteSpace(identity.PersonalInfo.LastName))
+        {
+            return (false, BatchErrorCodes.MissingRequiredField, "Either FirstName or LastName is required");
+        }
+
+        // Validate email format if provided
+        if (!string.IsNullOrWhiteSpace(identity.ContactInfo.Email) &&
+            !identity.ContactInfo.Email.Contains('@'))
+        {
+            return (false, BatchErrorCodes.InvalidEmail, "Invalid email format");
+        }
+
+        // Validate date of birth if provided
+        if (identity.PersonalInfo.DateOfBirth.HasValue)
+        {
+            var dob = identity.PersonalInfo.DateOfBirth.Value;
+            if (dob > DateTime.Now || dob < DateTime.Now.AddYears(-150))
+            {
+                return (false, BatchErrorCodes.MalformedDateOfBirth, "Date of birth is invalid");
+            }
+        }
+
+        return (true, null, null);
+    }
+
+    private void CalculateSummaryStatistics(BatchProcessingResult result)
+    {
+        // Initialize decision counts
+        foreach (ResolutionDecision decision in Enum.GetValues<ResolutionDecision>())
+        {
+            if (!result.DecisionCounts.ContainsKey(decision))
+                result.DecisionCounts[decision] = 0;
+        }
+
+        // Calculate throughput metrics
+        if (result.TotalProcessingTime.TotalSeconds > 0)
+        {
+            var throughputPerSecond = result.TotalRecords / result.TotalProcessingTime.TotalSeconds;
+            var throughputPerHour = (int)(throughputPerSecond * 3600);
+            
+            _logger.LogInformation("Batch processing throughput: {ThroughputPerHour} records/hour", throughputPerHour);
+        }
+    }
+
+    private async Task WriteCsvResultsAsync(Stream stream, BatchProcessingResult result)
+    {
+        using var writer = new StreamWriter(stream, leaveOpen: true);
+        
+        // Write CSV header
+        await writer.WriteLineAsync("RecordNumber,EPID,Decision,Score,IsSuccess,ErrorCode,ErrorMessage,ProcessingTimeMs");
+        
+        // Write data rows
+        foreach (var record in result.Results)
+        {
+            var line = $"{record.RecordNumber}," +
+                      $"\"{record.EPID ?? ""}\"," +
+                      $"{record.Decision}," +
+                      $"{record.Score:F4}," +
+                      $"{record.IsSuccess}," +
+                      $"\"{record.ErrorCode ?? ""}\"," +
+                      $"\"{record.ErrorMessage ?? ""}\"," +
+                      $"{record.ProcessingTime.TotalMilliseconds:F0}";
+            
+            await writer.WriteLineAsync(line);
+        }
+    }
+}

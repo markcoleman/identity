@@ -40,6 +40,9 @@ builder.Services.Configure<DataGovernanceConfiguration>(builder.Configuration.Ge
 builder.Services.AddSingleton<IDataGovernanceService, InMemoryDataGovernanceService>();
 builder.Services.AddSingleton<IReprocessingService, InMemoryReprocessingService>();
 
+// Add batch processing service
+builder.Services.AddSingleton<IBatchProcessingService, InMemoryBatchProcessingService>();
+
 // Add CORS for development
 builder.Services.AddCors(options =>
 {
