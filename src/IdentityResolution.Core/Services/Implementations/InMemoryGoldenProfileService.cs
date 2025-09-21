@@ -44,7 +44,7 @@ public class InMemoryGoldenProfileService : IGoldenProfileService
         // Initialize history
         _profileHistory[profile.PersonId] = new List<GoldenProfile> { DeepCopy(profile) };
 
-        _logger.LogInformation("Created golden profile {PersonId} with EPID {EPID}", profile.PersonId, profile.EPID);
+        _logger.LogInformation("Created golden profile successfully");
 
         return Task.FromResult(profile);
     }
@@ -98,7 +98,7 @@ public class InMemoryGoldenProfileService : IGoldenProfileService
             history.Add(DeepCopy(profile));
         }
 
-        _logger.LogInformation("Updated golden profile {PersonId} to version {Version}", profile.PersonId, profile.Version);
+        _logger.LogInformation("Updated golden profile successfully");
 
         return Task.FromResult(profile);
     }
