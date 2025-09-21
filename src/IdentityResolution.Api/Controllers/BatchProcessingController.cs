@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using IdentityResolution.Core.Models;
 using IdentityResolution.Core.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -79,20 +80,20 @@ public class BatchProcessingController : ControllerBase
             }
 
             _logger.LogInformation("Starting batch processing of file {FileName} ({FileSize} bytes) with format {Format}",
-                file.FileName, file.Length, inputFormat);
+                SanitizeForLogging(file.FileName), file.Length, inputFormat);
 
             // Process the batch
             using var stream = file.OpenReadStream();
             var result = await _batchProcessingService.ProcessBatchAsync(stream, inputFormat, configuration);
 
             _logger.LogInformation("Batch processing completed for file {FileName}. Processed {Successful}/{Total} records",
-                file.FileName, result.SuccessfullyProcessed, result.TotalRecords);
+                SanitizeForLogging(file.FileName), result.SuccessfullyProcessed, result.TotalRecords);
 
             return Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing batch file {FileName}", file?.FileName);
+            _logger.LogError(ex, "Error processing batch file {FileName}", SanitizeForLogging(file?.FileName));
             return StatusCode(500, "Error occurred during batch processing");
         }
     }
@@ -130,7 +131,7 @@ public class BatchProcessingController : ControllerBase
             var jobId = await _batchProcessingService.ScheduleBatchProcessingAsync(request);
 
             _logger.LogInformation("Scheduled batch processing job {JobId} for source {Source} by {RequestedBy}",
-                jobId, request.Source, request.RequestedBy);
+                jobId, SanitizeForLogging(request.Source), SanitizeForLogging(request.RequestedBy));
 
             return CreatedAtAction(nameof(GetBatchJobStatus), new { jobId }, jobId);
         }
@@ -250,6 +251,31 @@ public class BatchProcessingController : ControllerBase
             _logger.LogError(ex, "Error retrieving batch processing statistics");
             return Task.FromResult<ActionResult<BatchProcessingStats>>(StatusCode(500, "Error occurred while retrieving statistics"));
         }
+    }
+
+    /// <summary>
+    /// Sanitizes user input for safe logging to prevent log injection attacks
+    /// </summary>
+    /// <param name="input">The input string to sanitize</param>
+    /// <returns>Sanitized string safe for logging</returns>
+    private static string SanitizeForLogging(string? input)
+    {
+        if (string.IsNullOrEmpty(input))
+        {
+            return "[empty]";
+        }
+
+        // Remove or replace potentially dangerous characters for log injection
+        // Keep only alphanumeric, basic punctuation, and common safe characters
+        var sanitized = Regex.Replace(input, @"[^\w\s\-\.\@\/]", "_");
+
+        // Limit length to prevent log flooding
+        if (sanitized.Length > 100)
+        {
+            sanitized = sanitized.Substring(0, 97) + "...";
+        }
+
+        return sanitized;
     }
 }
 

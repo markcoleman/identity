@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using IdentityResolution.Core.Models;
 using Microsoft.Extensions.Logging;
 
@@ -135,7 +136,7 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
         });
 
         _logger.LogInformation("Scheduled batch processing job {JobId} for source {Source}",
-            jobId, jobRequest.Source);
+            jobId, SanitizeForLogging(jobRequest.Source));
 
         return Task.FromResult(jobId);
     }
@@ -246,7 +247,7 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to parse CSV line {LineNumber}: {Line}", lineNumber, line);
+                _logger.LogWarning(ex, "Failed to parse CSV line {LineNumber}: {Line}", lineNumber, SanitizeForLogging(line));
             }
 
             lineNumber++;
@@ -576,5 +577,30 @@ public class InMemoryBatchProcessingService : IBatchProcessingService
         }
 
         return fullPath;
+    }
+
+    /// <summary>
+    /// Sanitizes user input for safe logging to prevent log injection attacks
+    /// </summary>
+    /// <param name="input">The input string to sanitize</param>
+    /// <returns>Sanitized string safe for logging</returns>
+    private static string SanitizeForLogging(string? input)
+    {
+        if (string.IsNullOrEmpty(input))
+        {
+            return "[empty]";
+        }
+
+        // Remove or replace potentially dangerous characters for log injection
+        // Keep only alphanumeric, basic punctuation, and common safe characters
+        var sanitized = Regex.Replace(input, @"[^\w\s\-\.\@\/]", "_");
+
+        // Limit length to prevent log flooding
+        if (sanitized.Length > 100)
+        {
+            sanitized = sanitized.Substring(0, 97) + "...";
+        }
+
+        return sanitized;
     }
 }
