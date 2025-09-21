@@ -46,6 +46,8 @@ public class IdentityResolutionServiceTests
             .ReturnsAsync(matchResult);
         _mockStorageService.Setup(x => x.StoreIdentityAsync(normalizedIdentity, It.IsAny<CancellationToken>()))
             .ReturnsAsync(normalizedIdentity);
+        _mockStorageService.Setup(x => x.UpdateIdentityAsync(It.IsAny<Identity>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Identity identity, CancellationToken _) => identity);
 
         // Act
         var result = await _service.ResolveIdentityAsync(identity);
