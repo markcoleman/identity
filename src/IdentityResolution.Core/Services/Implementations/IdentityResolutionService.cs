@@ -66,8 +66,8 @@ public class IdentityResolutionService : IIdentityResolutionService
             var decision = MakeResolutionDecision(matchResult, configuration, result);
             result.Decision = decision;
 
-            // Generate EPID based on decision and resolved identity
-            result.EPID = await GenerateEPIDAsync(decision, normalizedIdentity, matchResult, cancellationToken);
+            // Generate EPID for tracking
+            result.EPID = $"EPID-{Guid.NewGuid():N}";
 
             // Execute the decision
             await ExecuteResolutionDecision(decision, normalizedIdentity, matchResult, result, cancellationToken);
