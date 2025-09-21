@@ -135,8 +135,7 @@ public class InMemoryGoldenProfileService : IGoldenProfileService
         if (_profileHistory.TryGetValue(secondaryPersonId, out var secondaryHistory))
             secondaryHistory.Add(DeepCopy(secondaryProfile));
 
-        _logger.LogInformation("Merged golden profiles {SecondaryId} into {PrimaryId} by {Actor}",
-            secondaryPersonId, primaryPersonId, actor);
+        _logger.LogInformation("Merged golden profiles successfully");
 
         return mergedProfile;
     }
@@ -149,10 +148,9 @@ public class InMemoryGoldenProfileService : IGoldenProfileService
 
         var resultProfiles = new List<GoldenProfile>();
 
-        // Create new profiles for each split identity group
-        foreach (var splitGroup in splitIdentityIds.Chunk(splitIdentityIds.Count / 2)) // Simple split for demo
-        {
-            var newProfile = new GoldenProfile
+        // Create new profiles for each split identity group using Select for better performance
+        var newProfiles = splitIdentityIds.Chunk(splitIdentityIds.Count / 2) // Simple split for demo
+            .Select(splitGroup => new GoldenProfile
             {
                 PersonId = Guid.NewGuid(),
                 EPID = $"EPID-{Guid.NewGuid():N}",
@@ -161,12 +159,17 @@ public class InMemoryGoldenProfileService : IGoldenProfileService
                 Confidence = originalProfile.Confidence * 0.8, // Reduced confidence after split
                 Attributes = new Dictionary<string, object>(originalProfile.Attributes),
                 Metadata = new Dictionary<string, object>(originalProfile.Metadata)
-            };
+                {
+                    ["SplitFromPersonId"] = personId,
+                    ["SplitActor"] = actor,
+                    ["SplitTimestamp"] = DateTime.UtcNow
+                }
+            })
+            .ToList();
 
-            newProfile.Metadata["SplitFromPersonId"] = personId;
-            newProfile.Metadata["SplitActor"] = actor;
-            newProfile.Metadata["SplitTimestamp"] = DateTime.UtcNow;
-
+        // Create profiles and add to results
+        foreach (var newProfile in newProfiles)
+        {
             await CreateGoldenProfileAsync(newProfile, cancellationToken);
             resultProfiles.Add(newProfile);
         }
@@ -180,8 +183,8 @@ public class InMemoryGoldenProfileService : IGoldenProfileService
         if (_profileHistory.TryGetValue(personId, out var history))
             history.Add(DeepCopy(originalProfile));
 
-        _logger.LogInformation("Split golden profile {PersonId} into {Count} new profiles by {Actor}",
-            personId, resultProfiles.Count, actor);
+        _logger.LogInformation("Split golden profile into {Count} new profiles",
+            resultProfiles.Count);
 
         return resultProfiles;
     }
@@ -224,22 +227,24 @@ public class InMemoryGoldenProfileService : IGoldenProfileService
         merged.SourceIdentityIds.AddRange(secondary.SourceIdentityIds);
         merged.SourceIdentityIds = merged.SourceIdentityIds.Distinct().ToList();
 
-        // Merge verified identifiers
-        foreach (var identifier in secondary.VerifiedIdentifiers)
+        // Merge verified identifiers - use LINQ Where to filter existing ones
+        var newIdentifiers = secondary.VerifiedIdentifiers
+            .Where(identifier => !merged.VerifiedIdentifiers.Any(i => i.Type == identifier.Type && i.Value == identifier.Value))
+            .ToList();
+        
+        foreach (var identifier in newIdentifiers)
         {
-            if (!merged.VerifiedIdentifiers.Any(i => i.Type == identifier.Type && i.Value == identifier.Value))
-            {
-                merged.VerifiedIdentifiers.Add(identifier);
-            }
+            merged.VerifiedIdentifiers.Add(identifier);
         }
 
-        // Merge attributes (primary takes precedence for conflicts)
-        foreach (var attr in secondary.Attributes)
+        // Merge attributes (primary takes precedence for conflicts) - use Where for filtering
+        var newAttributes = secondary.Attributes
+            .Where(attr => !merged.Attributes.ContainsKey(attr.Key))
+            .ToList();
+            
+        foreach (var attr in newAttributes)
         {
-            if (!merged.Attributes.ContainsKey(attr.Key))
-            {
-                merged.Attributes[attr.Key] = attr.Value;
-            }
+            merged.Attributes[attr.Key] = attr.Value;
         }
 
         // Update confidence (average of both profiles)

@@ -35,8 +35,7 @@ public class InMemoryReprocessingService : IReprocessingService
         var stopwatch = Stopwatch.StartNew();
         configuration ??= new MatchingConfiguration();
 
-        _logger.LogInformation("Starting replay of match {MatchId} with algorithm version {Version}",
-            originalMatchId, newAlgorithmVersion);
+        _logger.LogInformation("Starting replay of match with algorithm version");
 
         var result = new ReprocessingResult
         {
