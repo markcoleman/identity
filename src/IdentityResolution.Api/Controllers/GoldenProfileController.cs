@@ -67,7 +67,7 @@ public class GoldenProfileController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving golden profile for EPID {EPID}", epid);
+            _logger.LogError(ex, "Error retrieving golden profile for EPID");
             return StatusCode(500, "Error occurred while retrieving golden profile");
         }
     }
@@ -85,9 +85,14 @@ public class GoldenProfileController : ControllerBase
             var history = await _goldenProfileService.GetGoldenProfileHistoryAsync(personId);
             return Ok(history);
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid golden profile creation request");
+            return BadRequest("Invalid golden profile data");
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving golden profile history for person {PersonId}", personId);
+            _logger.LogError(ex, "Error retrieving golden profile history");
             return StatusCode(500, "Error occurred while retrieving golden profile history");
         }
     }
@@ -111,6 +116,11 @@ public class GoldenProfileController : ControllerBase
             var profiles = await _goldenProfileService.GetGoldenProfilesAsync(skip, take);
             return Ok(profiles);
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid request for golden profiles");
+            return BadRequest("Invalid request parameters");
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving golden profiles");
@@ -130,6 +140,11 @@ public class GoldenProfileController : ControllerBase
         {
             var profiles = await _goldenProfileService.SearchGoldenProfilesAsync(searchRequest.Criteria);
             return Ok(profiles);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid search request for golden profiles");
+            return BadRequest("Invalid search criteria");
         }
         catch (Exception ex)
         {
@@ -167,8 +182,8 @@ public class GoldenProfileController : ControllerBase
 
             await _auditService.RecordAuditAsync(auditRecord);
 
-            _logger.LogInformation("Created golden profile {PersonId} with EPID {EPID}", 
-                createdProfile.PersonId, createdProfile.EPID);
+            _logger.LogInformation("Created golden profile with ID {PersonId}", 
+                createdProfile.PersonId);
 
             return CreatedAtAction(
                 nameof(GetGoldenProfile), 
@@ -263,15 +278,14 @@ public class GoldenProfileController : ControllerBase
 
             await _auditService.RecordMergeEventAsync(mergeEvent);
 
-            _logger.LogInformation("Merged golden profiles {SecondaryId} into {PrimaryId} by {Actor}",
-                mergeRequest.SecondaryPersonId, mergeRequest.PrimaryPersonId, mergeRequest.Actor);
+            _logger.LogInformation("Merged golden profiles successfully");
 
             return Ok(mergedProfile);
         }
         catch (ArgumentException ex)
         {
-            _logger.LogWarning(ex, "Invalid merge request");
-            return BadRequest(ex.Message);
+            _logger.LogWarning(ex, "Invalid merge request parameters");
+            return BadRequest("Invalid merge request parameters");
         }
         catch (Exception ex)
         {
@@ -306,15 +320,15 @@ public class GoldenProfileController : ControllerBase
 
             await _auditService.RecordSplitEventAsync(splitEvent);
 
-            _logger.LogInformation("Split golden profile {PersonId} into {Count} profiles by {Actor}",
-                splitRequest.PersonId, resultProfiles.Count, splitRequest.Actor);
+            _logger.LogInformation("Split golden profile into {Count} profiles",
+                resultProfiles.Count);
 
             return Ok(resultProfiles);
         }
         catch (ArgumentException ex)
         {
-            _logger.LogWarning(ex, "Invalid split request");
-            return BadRequest(ex.Message);
+            _logger.LogWarning(ex, "Invalid split request parameters");
+            return BadRequest("Invalid split request parameters");
         }
         catch (Exception ex)
         {

@@ -38,19 +38,19 @@ public class ReprocessingController : ControllerBase
                 request.NewAlgorithmVersion,
                 request.Configuration);
 
-            _logger.LogInformation("Replayed match {MatchId} with algorithm {Version}. Decision changed: {DecisionChanged}",
-                request.OriginalMatchId, request.NewAlgorithmVersion, result.DecisionChanged);
+            _logger.LogInformation("Replayed match with algorithm version. Decision changed: {DecisionChanged}",
+                result.DecisionChanged);
 
             return Ok(result);
         }
         catch (ArgumentException ex)
         {
-            _logger.LogWarning(ex, "Invalid replay request for match {MatchId}", request.OriginalMatchId);
-            return BadRequest(ex.Message);
+            _logger.LogWarning(ex, "Invalid replay request parameters");
+            return BadRequest("Invalid replay request parameters");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error replaying match {MatchId}", request.OriginalMatchId);
+            _logger.LogError(ex, "Error replaying match");
             return StatusCode(500, "Error occurred during match replay");
         }
     }
@@ -76,8 +76,7 @@ public class ReprocessingController : ControllerBase
 
             var jobId = await _reprocessingService.ScheduleBatchReprocessingAsync(request);
 
-            _logger.LogInformation("Started batch reprocessing job {JobId} for {FromDate} to {ToDate}",
-                jobId, request.FromDate, request.ToDate);
+            _logger.LogInformation("Started batch reprocessing job");
 
             return CreatedAtAction(nameof(GetBatchJobStatus), new { jobId }, jobId);
         }
@@ -108,7 +107,7 @@ public class ReprocessingController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving batch job status for {JobId}", jobId);
+            _logger.LogError(ex, "Error retrieving batch job status");
             return StatusCode(500, "Error occurred while retrieving job status");
         }
     }
@@ -134,8 +133,7 @@ public class ReprocessingController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error comparing matches {Original} and {Reprocessed}",
-                originalMatchId, reprocessedMatchId);
+            _logger.LogError(ex, "Error comparing matches");
             return StatusCode(500, "Error occurred during match comparison");
         }
     }
@@ -154,7 +152,7 @@ public class ReprocessingController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving reprocessing history for match {MatchId}", originalMatchId);
+            _logger.LogError(ex, "Error retrieving reprocessing history");
             return StatusCode(500, "Error occurred while retrieving reprocessing history");
         }
     }
@@ -186,8 +184,8 @@ public class ReprocessingController : ControllerBase
                 request.NewAlgorithmVersion,
                 request.Configuration);
 
-            _logger.LogInformation("Completed synchronous batch reprocessing for {FromDate} to {ToDate}. Processed: {Count}",
-                request.FromDate, request.ToDate, result.SuccessfullyProcessed);
+            _logger.LogInformation("Completed synchronous batch reprocessing. Processed: {Count}",
+                result.SuccessfullyProcessed);
 
             return Ok(result);
         }
