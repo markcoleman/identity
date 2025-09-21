@@ -126,4 +126,33 @@ public class DataNormalizationServiceTests
         Assert.Equal("(555) 123-4567", result.ContactInfo.Phone);
         Assert.Equal("123456789", result.Identifiers[0].Value);
     }
+
+    [Fact]
+    public void NormalizeAddress_ShouldTokenizeAddressComponents()
+    {
+        // Arrange
+        var address = new Address
+        {
+            Street1 = "123 Main Street",
+            Street2 = "Apt 4B",
+            City = "New York",
+            State = "New York",
+            PostalCode = "10001",
+            Country = "United States"
+        };
+
+        // Act
+        var result = _service.NormalizeAddress(address);
+
+        // Assert
+        Assert.Contains("123", result.StreetTokens);
+        Assert.Contains("MAIN", result.StreetTokens);
+        Assert.Contains("ST", result.StreetTokens);
+        Assert.Contains("APT", result.StreetTokens);
+        Assert.Contains("4B", result.StreetTokens);
+        Assert.Equal("NEW YORK", result.City);
+        Assert.Equal("NY", result.State);
+        Assert.Equal("10001", result.PostalCode);
+        Assert.Equal("US", result.Country);
+    }
 }

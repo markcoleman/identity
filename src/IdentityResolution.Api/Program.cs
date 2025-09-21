@@ -30,6 +30,10 @@ builder.Services.AddScoped<ITokenizationService, TokenizationService>();
 builder.Services.AddScoped<IIdentityMatchingService, IdentityMatchingService>();
 builder.Services.AddScoped<IIdentityResolutionService, IdentityResolutionService>();
 
+// Add new audit and review services
+builder.Services.AddSingleton<IAuditService, InMemoryAuditService>();
+builder.Services.AddSingleton<IReviewQueueService, InMemoryReviewQueueService>();
+
 // Add CORS for development
 builder.Services.AddCors(options =>
 {

@@ -6,6 +6,11 @@ namespace IdentityResolution.Core.Models;
 public class ResolutionResult
 {
     /// <summary>
+    /// The Enterprise Person ID (EPID) - a stable identifier for the resolved person
+    /// </summary>
+    public string EPID { get; set; } = string.Empty;
+
+    /// <summary>
     /// The resolved identity (may be merged)
     /// </summary>
     public Identity ResolvedIdentity { get; set; } = null!;

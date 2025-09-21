@@ -126,6 +126,13 @@ public interface IDataNormalizationService
     /// <param name="phone">The phone number to normalize</param>
     /// <returns>The normalized phone number</returns>
     string NormalizePhone(string? phone);
+
+    /// <summary>
+    /// Normalize and tokenize an address into components
+    /// </summary>
+    /// <param name="address">The address to normalize</param>
+    /// <returns>The normalized address with tokenized components</returns>
+    AddressTokens NormalizeAddress(Address? address);
 }
 
 /// <summary>
@@ -147,4 +154,71 @@ public interface ITokenizationService
     /// <param name="token">The token to validate against</param>
     /// <returns>True if the token matches the SSN</returns>
     bool ValidateSSNToken(string ssn, string token);
+}
+
+/// <summary>
+/// Service for managing review queue operations
+/// </summary>
+public interface IReviewQueueService
+{
+    /// <summary>
+    /// Add an item to the review queue
+    /// </summary>
+    Task<ReviewQueueItem> AddToReviewQueueAsync(ReviewQueueItem item, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get all open review queue items
+    /// </summary>
+    Task<IEnumerable<ReviewQueueItem>> GetOpenReviewItemsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get a specific review queue item
+    /// </summary>
+    Task<ReviewQueueItem?> GetReviewItemAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Update a review queue item with reviewer decision
+    /// </summary>
+    Task<ReviewQueueItem> UpdateReviewItemAsync(Guid id, ResolutionDecision decision, string reviewedBy, string? notes = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Resolve a review queue item and create/merge identities as appropriate
+    /// </summary>
+    Task<ResolutionResult> ResolveReviewItemAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Service for managing audit trails and compliance
+/// </summary>
+public interface IAuditService
+{
+    /// <summary>
+    /// Record an audit event
+    /// </summary>
+    Task<AuditRecord> RecordAuditAsync(AuditRecord record, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get audit records for a specific identity
+    /// </summary>
+    Task<IEnumerable<AuditRecord>> GetAuditRecordsAsync(Guid identityId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get audit records by operation type
+    /// </summary>
+    Task<IEnumerable<AuditRecord>> GetAuditRecordsByTypeAsync(AuditOperationType operationType, DateTime? from = null, DateTime? to = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Record a merge event
+    /// </summary>
+    Task<MergeEvent> RecordMergeEventAsync(MergeEvent mergeEvent, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Record a split event
+    /// </summary>
+    Task<SplitEvent> RecordSplitEventAsync(SplitEvent splitEvent, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get lineage for an identity
+    /// </summary>
+    Task<IdentityLineage> GetIdentityLineageAsync(Guid identityId, CancellationToken cancellationToken = default);
 }
