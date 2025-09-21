@@ -69,4 +69,9 @@ public class ResolutionResult
     /// When this resolution was performed
     /// </summary>
     public DateTime ResolvedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Enterprise Person ID for external tracking
+    /// </summary>
+    public string? EPID { get; set; }
 }
