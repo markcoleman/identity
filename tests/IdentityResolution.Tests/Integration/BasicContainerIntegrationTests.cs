@@ -78,7 +78,7 @@ public class BasicContainerIntegrationTests : IntegrationTestBase
     }
 
     [Fact]
-    public async Task NormalizationService_ShouldNormalizeIdentityData()
+    public void NormalizationService_ShouldNormalizeIdentityData()
     {
         // Arrange
         var unnormalizedIdentity = CreateTestIdentity(
@@ -116,5 +116,38 @@ public class BasicContainerIntegrationTests : IntegrationTestBase
         
         TokenizationService.ValidateSSNToken(ssn1, token1).Should().BeTrue();
         TokenizationService.ValidateSSNToken(ssn2, token1).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task MatchingService_WithDatabaseData_ShouldFindExactMatches()
+    {
+        // Arrange - Store a test identity with SSN
+        var existingIdentity = CreateTestIdentity(
+            "Database", "TestUser",
+            DateTime.SpecifyKind(new DateTime(1990, 6, 15), DateTimeKind.Utc),
+            "database.test@example.com",
+            "(555) 999-8888",
+            "999-88-7777");
+
+        await StorageService.StoreIdentityAsync(existingIdentity);
+
+        // Create a candidate with same SSN and DOB
+        var candidateIdentity = CreateTestIdentity(
+            "Database", "TestUser",
+            DateTime.SpecifyKind(new DateTime(1990, 6, 15), DateTimeKind.Utc),
+            "different.email@example.com", // Different email
+            "(555) 888-9999", // Different phone
+            "999-88-7777"); // Same SSN
+
+        // Act
+        var result = await MatchingService.FindMatchesAsync(candidateIdentity);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Matches.Should().HaveCountGreaterThan(0, "Should find the matching identity");
+        
+        var bestMatch = result.Matches.OrderByDescending(m => m.OverallScore).First();
+        bestMatch.OverallScore.Should().BeGreaterThan(0.9, "SSN match should have high confidence");
+        bestMatch.CandidateIdentity.Id.Should().Be(existingIdentity.Id);
     }
 }
