@@ -70,15 +70,15 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         DbContext = ServiceProvider.GetRequiredService<IdentityDbContext>();
         await DbContext.Database.EnsureCreatedAsync();
 
-        // Seed test data
-        await SeedTestDataAsync();
-
         // Get services
         StorageService = ServiceProvider.GetRequiredService<IIdentityStorageService>();
         MatchingService = ServiceProvider.GetRequiredService<IIdentityMatchingService>();
         ResolutionService = ServiceProvider.GetRequiredService<IIdentityResolutionService>();
         NormalizationService = ServiceProvider.GetRequiredService<IDataNormalizationService>();
         TokenizationService = ServiceProvider.GetRequiredService<ITokenizationService>();
+
+        // Seed test data
+        await SeedTestDataAsync();
     }
 
     public async Task DisposeAsync()
@@ -131,11 +131,13 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             new Identity
             {
                 Id = Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
                 PersonalInfo = new PersonalInfo
                 {
                     FirstName = "John",
                     LastName = "Smith",
-                    DateOfBirth = new DateTime(1985, 3, 15)
+                    DateOfBirth = DateTime.SpecifyKind(new DateTime(1985, 3, 15), DateTimeKind.Utc)
                 },
                 ContactInfo = new ContactInfo
                 {
@@ -158,11 +160,13 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             new Identity
             {
                 Id = Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
                 PersonalInfo = new PersonalInfo
                 {
                     FirstName = "Jane",
                     LastName = "Johnson",
-                    DateOfBirth = new DateTime(1990, 7, 22)
+                    DateOfBirth = DateTime.SpecifyKind(new DateTime(1990, 7, 22), DateTimeKind.Utc)
                 },
                 ContactInfo = new ContactInfo
                 {
@@ -178,11 +182,13 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             new Identity
             {
                 Id = Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
                 PersonalInfo = new PersonalInfo
                 {
                     FirstName = "Bob",
                     LastName = "Wilson",
-                    DateOfBirth = new DateTime(1975, 12, 8)
+                    DateOfBirth = DateTime.SpecifyKind(new DateTime(1975, 12, 8), DateTimeKind.Utc)
                 },
                 ContactInfo = new ContactInfo
                 {
@@ -203,11 +209,13 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     {
         var identity = new Identity
         {
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
             PersonalInfo = new PersonalInfo
             {
                 FirstName = firstName,
                 LastName = lastName,
-                DateOfBirth = dob
+                DateOfBirth = dob.HasValue ? DateTime.SpecifyKind(dob.Value, DateTimeKind.Utc) : null
             },
             ContactInfo = new ContactInfo
             {

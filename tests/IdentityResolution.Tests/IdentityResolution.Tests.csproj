@@ -30,8 +30,9 @@
     <PackageReference Include="Testcontainers.Elasticsearch" Version="3.10.0" />
     
     <!-- Database and caching libraries -->
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.10" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.9" />
     <PackageReference Include="StackExchange.Redis" Version="2.8.16" />
     <PackageReference Include="NEST" Version="7.17.5" />
   </ItemGroup>
