@@ -71,9 +71,9 @@ public class InMemoryDataGovernanceService : IDataGovernanceService
             }
         }
 
-        var maskedRecord = auditRecord with 
-        { 
-            Inputs = maskedInputs 
+        var maskedRecord = auditRecord with
+        {
+            Inputs = maskedInputs
         };
 
         return Task.FromResult(maskedRecord);
@@ -82,11 +82,11 @@ public class InMemoryDataGovernanceService : IDataGovernanceService
     public Task<IEnumerable<Guid>> GetRecordsForDeletionAsync(AuditOperationType recordType, int retentionPeriod = 7)
     {
         var cutoffDate = DateTime.UtcNow.AddYears(-retentionPeriod);
-        
+
         // In production, this would query the actual database
         // For demo, return empty list
         var expiredRecords = new List<Guid>();
-        
+
         _logger.LogInformation("Found {Count} {RecordType} records eligible for deletion (older than {CutoffDate})",
             expiredRecords.Count, recordType, cutoffDate);
 
@@ -96,7 +96,7 @@ public class InMemoryDataGovernanceService : IDataGovernanceService
     public Task<int> DeleteExpiredRecordsAsync(IEnumerable<Guid> recordIds)
     {
         var count = recordIds.Count();
-        
+
         // In production, this would perform the actual deletion
         foreach (var recordId in recordIds)
         {
@@ -109,10 +109,10 @@ public class InMemoryDataGovernanceService : IDataGovernanceService
     public Task<int> ArchiveOldRecordsAsync(AuditOperationType recordType, int archiveAfterDays = 365)
     {
         var archiveDate = DateTime.UtcNow.AddDays(-archiveAfterDays);
-        
+
         // In production, this would move records to cold storage
         var archivedCount = 0;
-        
+
         _logger.LogInformation("Archived {Count} {RecordType} records (older than {ArchiveDate})",
             archivedCount, recordType, archiveDate);
 
@@ -155,12 +155,12 @@ public class InMemoryDataGovernanceService : IDataGovernanceService
             // Simple decryption for demo
             var decoded = Encoding.UTF8.GetString(Convert.FromBase64String(encryptedData));
             var parts = decoded.Split(':', 2);
-            
+
             if (parts.Length == 2 && parts[0] == _encryptionKey)
             {
                 return Task.FromResult(parts[1]);
             }
-            
+
             return Task.FromResult(encryptedData); // Return as-is if can't decrypt
         }
         catch (Exception ex)
@@ -199,7 +199,7 @@ public class InMemoryDataGovernanceService : IDataGovernanceService
         // Default masking
         if (value.Length <= 2)
             return "***";
-        
+
         return $"{value[0]}***{value[^1]}";
     }
 }

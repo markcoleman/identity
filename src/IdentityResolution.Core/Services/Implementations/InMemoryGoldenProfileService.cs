@@ -231,7 +231,7 @@ public class InMemoryGoldenProfileService : IGoldenProfileService
         var newIdentifiers = secondary.VerifiedIdentifiers
             .Where(identifier => !merged.VerifiedIdentifiers.Any(i => i.Type == identifier.Type && i.Value == identifier.Value))
             .ToList();
-        
+
         foreach (var identifier in newIdentifiers)
         {
             merged.VerifiedIdentifiers.Add(identifier);
@@ -241,7 +241,7 @@ public class InMemoryGoldenProfileService : IGoldenProfileService
         var newAttributes = secondary.Attributes
             .Where(attr => !merged.Attributes.ContainsKey(attr.Key))
             .ToList();
-            
+
         foreach (var attr in newAttributes)
         {
             merged.Attributes[attr.Key] = attr.Value;

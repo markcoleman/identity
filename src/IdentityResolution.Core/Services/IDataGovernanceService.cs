@@ -109,7 +109,7 @@ public class DataGovernanceConfiguration
     public HashSet<string> SensitiveFields { get; set; } = new()
     {
         "SSN",
-        "DateOfBirth", 
+        "DateOfBirth",
         "Email",
         "Phone",
         "Address"

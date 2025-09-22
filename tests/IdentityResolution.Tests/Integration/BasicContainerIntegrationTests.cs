@@ -30,8 +30,8 @@ public class BasicContainerIntegrationTests : IntegrationTestBase
     {
         // Arrange
         var testIdentity = CreateTestIdentity(
-            "Test", "User", 
-            new DateTime(1990, 1, 1), 
+            "Test", "User",
+            new DateTime(1990, 1, 1),
             "test.user@example.com",
             "(555) 123-4567");
 
@@ -42,7 +42,7 @@ public class BasicContainerIntegrationTests : IntegrationTestBase
         // Assert
         storedIdentity.Should().NotBeNull();
         storedIdentity.Id.Should().NotBe(Guid.Empty);
-        
+
         retrievedIdentity.Should().NotBeNull();
         retrievedIdentity!.PersonalInfo.FirstName.Should().Be("Test");
         retrievedIdentity.PersonalInfo.LastName.Should().Be("User");
@@ -71,12 +71,12 @@ public class BasicContainerIntegrationTests : IntegrationTestBase
         // Assert
         allIdentities.Should().NotBeEmpty();
         allIdentities.Should().HaveCountGreaterThanOrEqualTo(3, "Should contain at least the 3 test identities plus any seed data");
-        
-        var testIdentities = allIdentities.Where(i => 
-            i.PersonalInfo.FirstName == "Alice" || 
-            i.PersonalInfo.FirstName == "Bob" || 
+
+        var testIdentities = allIdentities.Where(i =>
+            i.PersonalInfo.FirstName == "Alice" ||
+            i.PersonalInfo.FirstName == "Bob" ||
             i.PersonalInfo.FirstName == "Carol").ToList();
-        
+
         testIdentities.Should().HaveCount(3, "All test identities should be stored");
     }
 
@@ -116,7 +116,7 @@ public class BasicContainerIntegrationTests : IntegrationTestBase
         token1.Should().NotBeNullOrEmpty("Token should not be empty");
         token2.Should().NotBeNullOrEmpty("Token should not be empty");
         token1.Should().Be(token2, "Same SSN in different formats should produce identical tokens");
-        
+
         TokenizationService.ValidateSSNToken(ssn1, token1).Should().BeTrue();
         TokenizationService.ValidateSSNToken(ssn2, token1).Should().BeTrue();
     }
@@ -148,7 +148,7 @@ public class BasicContainerIntegrationTests : IntegrationTestBase
         // Assert
         result.Should().NotBeNull();
         result.Matches.Should().HaveCountGreaterThan(0, "Should find the matching identity");
-        
+
         var bestMatch = result.Matches.OrderByDescending(m => m.OverallScore).First();
         bestMatch.OverallScore.Should().BeGreaterThan(0.9, "SSN match should have high confidence");
         bestMatch.CandidateIdentity.Id.Should().Be(existingIdentity.Id);
