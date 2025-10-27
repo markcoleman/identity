@@ -79,7 +79,7 @@ jobs:
       
     - name: Upload vulnerability report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: vulnerability-report
         path: vulnerable-packages.json
@@ -142,7 +142,7 @@ jobs:
         
     - name: Upload DevSkim results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: devskim-results
         path: devskim-results.sarif
